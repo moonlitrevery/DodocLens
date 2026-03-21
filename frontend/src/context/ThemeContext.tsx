@@ -37,8 +37,13 @@ function readStored(): ThemeMode {
 
 function applyDom(mode: ThemeMode) {
   const root = document.documentElement;
-  if (mode === "dark") root.classList.add("dark");
-  else root.classList.remove("dark");
+  if (mode === "dark") {
+    root.classList.add("dark");
+    root.style.colorScheme = "dark";
+  } else {
+    root.classList.remove("dark");
+    root.style.colorScheme = "light";
+  }
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

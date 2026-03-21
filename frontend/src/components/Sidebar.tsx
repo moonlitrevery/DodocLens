@@ -10,7 +10,7 @@ const idleClass =
 
 export function Sidebar() {
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-brand-950">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200 bg-white transition-colors duration-theme dark:border-slate-800 dark:bg-slate-900">
       <div className="border-b border-slate-200 px-4 py-5 dark:border-slate-800">
         <div className="text-xs font-semibold uppercase tracking-wider text-accent dark:text-accent-muted">
           DodocLens
