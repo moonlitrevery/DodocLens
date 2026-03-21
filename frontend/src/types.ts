@@ -14,11 +14,9 @@ export interface DocumentDetail extends DocumentSummary {
 }
 
 export interface SearchResultItem {
-  chunk_id: number;
   document_id: number;
   filename: string;
   chunk_index: number;
   snippet: string;
-  full_text: string;
   score: number;
 }
