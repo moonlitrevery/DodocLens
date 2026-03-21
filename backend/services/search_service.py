@@ -48,10 +48,12 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
         snippet = ch.text[:800] + ("…" if len(ch.text) > 800 else "")
         results.append(
             SearchResultItem(
+                chunk_id=ch.id,
                 document_id=doc.id,
                 filename=doc.filename,
                 chunk_index=ch.chunk_index,
                 snippet=snippet,
+                full_text=ch.text,
                 score=score,
             )
         )

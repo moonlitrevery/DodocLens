@@ -21,10 +21,14 @@ class DocumentDetail(DocumentSummary):
 
 
 class SearchResultItem(BaseModel):
+    chunk_id: int
     document_id: int
     filename: str
     chunk_index: int
     snippet: str
+    full_text: str = Field(
+        description="Complete chunk text (snippet is a shortened preview)."
+    )
     score: float = Field(description="Cosine similarity in [0, 1]")
 
 
