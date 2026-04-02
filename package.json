@@ -1,0 +1,58 @@
+{
+  "name": "dodoclens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local document intelligence — FastAPI + Electron + React",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev:fe": "npm run dev --prefix frontend",
+    "dev": "concurrently -k \"npm run dev:fe\" \"wait-on http://127.0.0.1:5173 && electron .\"",
+    "build:fe": "npm run build --prefix frontend",
+    "electron:prod": "npm run build:fe && electron .",
+    "pack": "npm run build:fe && electron-builder --dir",
+    "dist": "npm run build:fe && electron-builder",
+    "build:installer": "npm run dist",
+    "build:desktop": "npm run build:fe && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "electron": "^33.3.1",
+    "electron-builder": "^25.1.8",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.dodoclens.app",
+    "productName": "DodocLens",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "asarUnpack": ["backend/**"],
+    "files": [
+      "electron/**/*",
+      "frontend/dist/**/*",
+      "backend/**/*.py",
+      "backend/requirements.txt",
+      "!backend/data/**",
+      "!backend/**/__pycache__/**"
+    ],
+    "extraMetadata": {
+      "main": "electron/main.cjs"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Office"
+    },
+    "win": {
+      "target": ["nsis"]
+    },
+    "mac": {
+      "target": ["dmg"],
+      "category": "public.app-category.productivity"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
