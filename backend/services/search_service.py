@@ -15,7 +15,7 @@ from services.embeddings import embed_query, json_to_embedding
 logger = logging.getLogger(__name__)
 
 TOP_K = 5
-
+MIN_SCORE = 0.45
 
 def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     q = embed_query(query).reshape(1, -1)
@@ -39,11 +39,13 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
 
     X = np.vstack(matrices)
     sims = cosine_similarity(q, X)[0]
-    order = np.argsort(-sims)[:TOP_K]
+    order = np.argsort(-sims)
+
+    filtered = [idx for idx in order if sims[idx] >= MIN_SCORE][:TOP_K]
 
     results: list[SearchResultItem] = []
     for idx in order:
-        score = float(max(0.0, min(1.0, sims[idx])))
+        score = float((sims[idx] + 1) / 2)
         ch, doc = meta[int(idx)]
         snippet = ch.text[:800] + ("…" if len(ch.text) > 800 else "")
         results.append(
