@@ -19,7 +19,7 @@ MIN_SCORE = 0.45
 
 def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     q = embed_query(query).reshape(1, -1)
-    rows = db.query(Chunk, Document).join(Document).all()
+    rows = db.query(Chunk, Document).join(Document).limit(1000).all()
     if not rows:
         return []
 
