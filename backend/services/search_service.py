@@ -11,11 +11,40 @@ from sqlalchemy.orm import Session
 from models.orm import Chunk, Document
 from models.schemas import SearchResultItem
 from services.embeddings import embed_query, json_to_embedding
+import re
 
 logger = logging.getLogger(__name__)
 
 TOP_K = 5
 MIN_SCORE = 0.45
+
+def highlight_text(text: str, query: str, window: int = 200) -> str:
+    query_terms = query.lower().split()
+
+    lower_text = text.lower()
+    start_idx = 0
+
+    for term in query_terms:
+        idx = lower_text.find(term)
+        if idx != -1:
+            start_idx = idx
+            break
+
+    start = max(0, start_idx - window)
+    end = min(len(text), start_idx + window)
+
+    snippet = text[start:end]
+
+    for term in query_terms:
+        snippet = re.sub(
+            f"({re.escape(term)})",
+            r"<mark>\1</mark>",
+            snippet,
+            flags=re.IGNORECASE,
+        )
+
+    return snippet
+
 
 def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     q = embed_query(query).reshape(1, -1)
@@ -70,7 +99,7 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
         if next_chunk:
             context_text = context_text + "\n\n" + next_chunk.text
 
-        snippet = context_text[:800] + ("…" if len(context_text) > 800 else "")
+        snippet = highlight_text(context_text, query)
 
         results.append(
             SearchResultItem(

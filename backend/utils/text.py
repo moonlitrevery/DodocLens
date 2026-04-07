@@ -13,3 +13,12 @@ def normalize_text(raw: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
+
+def highlight_text(text: str, query: str) -> str:
+    terms = query.lower().split()
+
+    for term in terms:
+        text = text.replace(term, f"**{term}**")
+        text = text.replace(term.capitalize(), f"**{term.capitalize()}**")
+
+    return text
