@@ -16,7 +16,9 @@ import re
 logger = logging.getLogger(__name__)
 
 TOP_K = 5
-MIN_SCORE = 0.45
+# Cosine similarity in [-1, 1]. Short / keyword queries often sit below a strict
+# cutoff with MiniLM; without a fallback the UI shows “no results” while the index is fine.
+MIN_SCORE = 0.28
 
 def highlight_text(text: str, query: str, window: int = 200) -> str:
     query_terms = query.lower().split()
@@ -70,7 +72,14 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     sims = cosine_similarity(q, X)[0]
     order = np.argsort(-sims)
 
-    filtered = [idx for idx in order if sims[idx] >= MIN_SCORE][:TOP_K]
+    filtered = [int(idx) for idx in order if sims[idx] >= MIN_SCORE][:TOP_K]
+    if not filtered:
+        filtered = [int(i) for i in order[:TOP_K]]
+        logger.info(
+            "Search: no chunks above similarity %.2f; returning top-%s by score anyway",
+            MIN_SCORE,
+            TOP_K,
+        )
 
     results: list[SearchResultItem] = []
     for idx in filtered:
@@ -78,21 +87,21 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
         ch, doc = meta[int(idx)]
         context_text = ch.text
         prev_chunk = (
-        db.query(Chunk)
-        .filter(
-            Chunk.document_id == ch.document_id,
-            Chunk.chunk_index == ch.chunk_index - 1
+            db.query(Chunk)
+            .filter(
+                Chunk.document_id == ch.document_id,
+                Chunk.chunk_index == ch.chunk_index - 1,
+            )
+            .first()
         )
-        .first()
-    )
         next_chunk = (
-        db.query(Chunk)
-        .filter(
-            Chunk.document_id == ch.document_id,
-            Chunk.chunk_index == ch.chunk_index + 1
+            db.query(Chunk)
+            .filter(
+                Chunk.document_id == ch.document_id,
+                Chunk.chunk_index == ch.chunk_index + 1,
+            )
+            .first()
         )
-        .first()
-    )
         if prev_chunk:
             context_text = prev_chunk.text + "\n\n" + context_text
 

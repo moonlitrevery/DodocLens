@@ -1,4 +1,5 @@
 const { app, BrowserWindow } = require("electron");
+const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
 const http = require("http");
@@ -7,8 +8,6 @@ const http = require("http");
 let backendProcess = null;
 /** If true, backend was already listening (we did not spawn it). */
 let backendExternal = false;
-
-const isDev = !app.isPackaged;
 
 /** Repo root in dev; unpacked dir in production (see package.json asarUnpack). */
 function projectRoot() {
@@ -22,7 +21,14 @@ const MAIN_PY = path.join(projectRoot(), "backend", "main.py");
 
 function pythonExecutable() {
   if (process.env.DODOC_PYTHON) return process.env.DODOC_PYTHON;
-  if (process.platform === "win32") return "python";
+  const root = projectRoot();
+  if (process.platform === "win32") {
+    const winVenv = path.join(root, "backend", ".venv", "Scripts", "python.exe");
+    if (fs.existsSync(winVenv)) return winVenv;
+    return "python";
+  }
+  const unixVenv = path.join(root, "backend", ".venv", "bin", "python3");
+  if (fs.existsSync(unixVenv)) return unixVenv;
   return "python3";
 }
 
@@ -89,6 +95,48 @@ function stopBackend() {
   backendProcess = null;
 }
 
+function distIndexPath() {
+  return path.join(projectRoot(), "frontend", "dist", "index.html");
+}
+
+/**
+ * Packaged app always uses the built SPA. Unpackaged: use Vite when
+ * DODOC_LOAD_DIST is not set (npm run dev); otherwise or if :5173 is down,
+ * load frontend/dist (e.g. npm run electron:prod).
+ */
+async function loadRenderer(win) {
+  const distHtml = distIndexPath();
+  if (app.isPackaged) {
+    await win.loadFile(distHtml);
+    return;
+  }
+  if (process.env.DODOC_LOAD_DIST === "1") {
+    if (!fs.existsSync(distHtml)) {
+      throw new Error(
+        `DODOC_LOAD_DIST=1 but missing ${distHtml}. Run npm run build:fe first.`,
+      );
+    }
+    await win.loadFile(distHtml);
+    return;
+  }
+  try {
+    await win.loadURL("http://127.0.0.1:5173");
+    win.webContents.openDevTools({ mode: "detach" });
+  } catch (e) {
+    console.warn(
+      "[electron] Vite not reachable at http://127.0.0.1:5173 — loading built UI if available.",
+    );
+    if (fs.existsSync(distHtml)) {
+      await win.loadFile(distHtml);
+    } else {
+      console.error(
+        "[electron] No built frontend. Start Vite (npm run dev:fe) or build (npm run build:fe).",
+      );
+      throw e;
+    }
+  }
+}
+
 async function createWindow() {
   backendExternal = false;
   try {
@@ -120,18 +168,10 @@ async function createWindow() {
 
   win.once("ready-to-show", () => win.show());
 
-  if (isDev) {
-    await win.loadURL("http://127.0.0.1:5173");
-    win.webContents.openDevTools({ mode: "detach" });
-  } else {
-    const indexHtml = path.join(
-      __dirname,
-      "..",
-      "frontend",
-      "dist",
-      "index.html",
-    );
-    await win.loadFile(indexHtml);
+  try {
+    await loadRenderer(win);
+  } catch (e) {
+    console.error("[electron] Failed to load UI:", e);
   }
 }
 
