@@ -44,10 +44,34 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     filtered = [idx for idx in order if sims[idx] >= MIN_SCORE][:TOP_K]
 
     results: list[SearchResultItem] = []
-    for idx in order:
+    for idx in filtered:
         score = float((sims[idx] + 1) / 2)
         ch, doc = meta[int(idx)]
-        snippet = ch.text[:800] + ("…" if len(ch.text) > 800 else "")
+        context_text = ch.text
+        prev_chunk = (
+        db.query(Chunk)
+        .filter(
+            Chunk.document_id == ch.document_id,
+            Chunk.chunk_index == ch.chunk_index - 1
+        )
+        .first()
+    )
+        next_chunk = (
+        db.query(Chunk)
+        .filter(
+            Chunk.document_id == ch.document_id,
+            Chunk.chunk_index == ch.chunk_index + 1
+        )
+        .first()
+    )
+        if prev_chunk:
+            context_text = prev_chunk.text + "\n\n" + context_text
+
+        if next_chunk:
+            context_text = context_text + "\n\n" + next_chunk.text
+
+        snippet = context_text[:800] + ("…" if len(context_text) > 800 else "")
+
         results.append(
             SearchResultItem(
                 chunk_id=ch.id,
@@ -55,7 +79,7 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
                 filename=doc.filename,
                 chunk_index=ch.chunk_index,
                 snippet=snippet,
-                full_text=ch.text,
+                full_text=context_text,
                 score=score,
             )
         )
