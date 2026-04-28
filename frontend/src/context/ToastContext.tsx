@@ -25,15 +25,12 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const variantStyles: Record<
-  ToastVariant,
-  string
-> = {
+const variantStyles: Record<ToastVariant, string> = {
   success:
-    "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-100",
+    "border-dl-border bg-dl-violet/35 text-white shadow-card backdrop-blur-sm",
   error:
-    "border-red-200 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/80 dark:text-red-100",
-  info: "border-slate-200 bg-white text-slate-800 dark:border-slate-600 dark:bg-brand-900 dark:text-slate-100",
+    "border-dl-pink/40 bg-dl-bg-deep/95 text-dl-coral shadow-card backdrop-blur-sm",
+  info: "border-dl-border bg-dl-glass/90 text-white shadow-glass backdrop-blur-glass backdrop-saturate-[180%]",
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -64,7 +61,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className={`toast-item pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${variantStyles[t.variant]}`}
+            className={`toast-item pointer-events-auto rounded-xl border px-4 py-3 text-sm font-medium leading-snug tracking-[0.2px] ${variantStyles[t.variant]}`}
           >
             {t.message}
           </div>

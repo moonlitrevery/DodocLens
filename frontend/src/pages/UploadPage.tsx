@@ -117,12 +117,11 @@ export function UploadPage() {
   );
 
   return (
-    <div className="flex flex-1 flex-col p-8">
-      <header className="mb-8">
-        <h2 className="text-2xl font-semibold text-brand-950 dark:text-slate-100">
-          Upload documents
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+    <div className="flex flex-1 flex-col">
+      <header className="mb-10 md:mb-16">
+        <p className="section-kicker">Ingest</p>
+        <h2 className="section-title">Upload documents</h2>
+        <p className="section-desc">
           PDF, PNG, or JPG. Files stay on this machine; OCR and embeddings run
           locally.
         </p>
@@ -142,11 +141,13 @@ export function UploadPage() {
         onKeyDown={(e) => {
           if (e.key === "Enter" || e.key === " ") inputRef.current?.click();
         }}
-        className={`relative flex min-h-[220px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 transition-colors duration-300 ${
+        className={[
+          "relative flex min-h-[240px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-12 transition-all duration-theme md:min-h-[280px]",
           dragOver
-            ? "border-teal-500 bg-teal-50/60 dark:border-teal-500/60 dark:bg-teal-950/30"
-            : "border-slate-300 bg-white dark:border-slate-600 dark:bg-slate-900/40"
-        } ${uploading ? "pointer-events-none opacity-90" : ""}`}
+            ? "border-dl-lime bg-dl-lime/10 shadow-ambient"
+            : "border-dl-border bg-dl-glass/30 shadow-glass backdrop-blur-glass backdrop-saturate-[180%]",
+          uploading ? "pointer-events-none opacity-90" : "",
+        ].join(" ")}
         onClick={() => !uploading && inputRef.current?.click()}
       >
         <input
@@ -163,33 +164,44 @@ export function UploadPage() {
         />
 
         {uploading && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[inherit] bg-white/85 dark:bg-slate-950/80">
-            <Spinner label="Uploading file" />
-            <p className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[inherit] bg-dl-bg-deep/90 backdrop-blur-sm">
+            <Spinner onDark label="Uploading file" />
+            <p className="mt-4 text-sm font-semibold uppercase tracking-[0.2px] text-dl-muted">
               Uploading…
             </p>
           </div>
         )}
 
         <div className="text-center">
-          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+          <p className="text-sm font-semibold uppercase tracking-[0.2px] text-white">
             Drag and drop a file here
           </p>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          <p className="mt-2 text-sm text-dl-muted">
             or click to choose · PDF, PNG, JPG
           </p>
+          <button
+            type="button"
+            className="btn-cta mt-8"
+            onClick={(e) => {
+              e.stopPropagation();
+              inputRef.current?.click();
+            }}
+            disabled={uploading}
+          >
+            Choose file
+          </button>
         </div>
       </div>
 
       {uploading && (
-        <div className="mt-6">
-          <div className="mb-1 flex justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Transfer progress</span>
+        <div className="mt-8">
+          <div className="mb-2 flex justify-between text-xs font-semibold uppercase tracking-[0.2px] text-dl-muted">
+            <span>Transfer</span>
             <span>{progress}%</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="h-2 overflow-hidden rounded-full bg-dl-border">
             <div
-              className="h-full rounded-full bg-brand-800 transition-all duration-300 dark:bg-teal-500"
+              className="h-full rounded-full bg-gradient-to-r from-dl-purple to-dl-lime transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
@@ -197,19 +209,19 @@ export function UploadPage() {
       )}
 
       {lastDoc && !uploading && (
-        <div className="mt-6 rounded-lg border border-slate-200 bg-white p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900/50">
-          <div className="font-medium text-brand-950 dark:text-slate-100">
+        <div className="card-elevated mt-8 border border-dl-border p-5">
+          <div className="font-display text-lg font-medium text-white">
             {lastDoc.filename}
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-slate-600 dark:text-slate-400">
-            <span>Status:</span>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-dl-muted">
+            <span className="uppercase tracking-[0.2px]">Status</span>
             <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2px] ${
                 lastDoc.status === "ready"
-                  ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/40 dark:text-emerald-100"
+                  ? "border-dl-purple/50 bg-dl-purple/20 text-dl-lime"
                   : lastDoc.status === "error"
-                    ? "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-100"
-                    : "bg-amber-100 text-amber-900 dark:bg-amber-900/35 dark:text-amber-100"
+                    ? "border-dl-pink/40 bg-dl-pink/10 text-dl-coral"
+                    : "border-dl-border bg-dl-btn-muted/25 text-dl-coral"
               }`}
             >
               {lastDoc.status === "pending" || lastDoc.status === "processing"
@@ -218,9 +230,11 @@ export function UploadPage() {
             </span>
           </div>
           {lastDoc.status === "pending" || lastDoc.status === "processing" ? (
-            <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-              Processing runs in the background. We will notify you here when
-              it finishes, or open Documents for the full library view.
+            <p className="mt-3 text-sm leading-relaxed text-dl-muted">
+              Processing runs in the background. You will get a toast when it
+              finishes, or open{" "}
+              <span className="font-medium text-dl-purple">Documents</span> for
+              the full library.
             </p>
           ) : null}
         </div>

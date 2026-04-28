@@ -1,7 +1,7 @@
 export function Spinner({
   className = "",
   label,
-  /** High-contrast ring on dark backgrounds (e.g. primary buttons). */
+  /** High-contrast ring on purple / CTA backgrounds. */
   onDark = false,
 }: {
   className?: string;
@@ -9,8 +9,8 @@ export function Spinner({
   onDark?: boolean;
 }) {
   const ring = onDark
-    ? "border-white/30 border-t-white"
-    : "border-slate-300 border-t-brand-800 dark:border-slate-600 dark:border-t-teal-400";
+    ? "border-white/35 border-t-dl-lime"
+    : "border-dl-border border-t-dl-purple";
 
   return (
     <span

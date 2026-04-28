@@ -21,7 +21,6 @@ export function SearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [chunkModal, setChunkModal] = useState<SearchResultItem | null>(null);
-  /** Query text used for the current result set (stable while editing the input). */
   const [activeQuery, setActiveQuery] = useState("");
 
   const runSearch = async () => {
@@ -55,12 +54,11 @@ export function SearchPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col p-8">
-      <header className="mb-6">
-        <h2 className="text-2xl font-semibold text-brand-950 dark:text-slate-100">
-          Semantic search
-        </h2>
-        <p className="mt-1 max-w-2xl text-sm text-slate-600 dark:text-slate-400">
+    <div className="flex flex-1 flex-col">
+      <header className="mb-8 md:mb-10">
+        <p className="section-kicker">Retrieve</p>
+        <h2 className="section-title">Semantic search</h2>
+        <p className="section-desc">
           Natural-language queries over your local library. Results are ranked
           by embedding similarity (top 5).
         </p>
@@ -74,13 +72,13 @@ export function SearchPage() {
           onKeyDown={(e) => e.key === "Enter" && void runSearch()}
           placeholder="e.g. patient follow-up plan, limitation of liability…"
           disabled={loading}
-          className="min-h-11 w-full flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-900 shadow-sm outline-none ring-brand-800 placeholder:text-slate-400 focus:ring-2 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500"
+          className="input-field min-h-11 w-full flex-1 sm:min-h-[3rem]"
         />
         <button
           type="button"
           disabled={loading || !query.trim()}
           onClick={() => void runSearch()}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-900 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500"
+          className="btn-primary inline-flex min-h-11 shrink-0 items-center justify-center gap-2 sm:min-h-[3rem] sm:px-8"
         >
           {loading ? (
             <>
@@ -95,20 +93,20 @@ export function SearchPage() {
 
       {error && (
         <div
-          className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-200"
+          className="mt-4 rounded-xl border border-dl-pink/40 bg-dl-pink/10 px-4 py-3 text-sm text-dl-coral"
           role="alert"
         >
           {error}
         </div>
       )}
 
-      <section className="mt-10 space-y-5">
+      <section className="mt-12 space-y-6 md:mt-16">
         <div className="flex items-center justify-between gap-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2px] text-dl-muted">
             Results
           </h3>
           {hasSearched && !loading && results.length > 0 && (
-            <span className="text-xs text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-medium uppercase tracking-[0.2px] text-dl-muted">
               {results.length} match{results.length === 1 ? "" : "es"}
             </span>
           )}
@@ -139,8 +137,8 @@ export function SearchPage() {
 
         {hasSearched && !loading && !error && results.length === 0 && (
           <EmptyState
-            title="No results found for this query"
-            description="Try different wording, upload more documents, or wait until processing finishes. Semantic search works best when chunks exist for your files."
+            title="No results for this query"
+            description="Try different wording, upload more documents, or wait until processing finishes."
             icon={
               <svg
                 className="h-6 w-6"
@@ -161,9 +159,11 @@ export function SearchPage() {
         )}
 
         {loading && (
-          <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+          <div className="card-glass flex items-center gap-4 border border-dl-border px-5 py-4 text-sm text-dl-muted">
             <Spinner label="Searching" />
-            Searching the index…
+            <span className="uppercase tracking-[0.2px]">
+              Searching the index…
+            </span>
           </div>
         )}
 
@@ -171,23 +171,23 @@ export function SearchPage() {
           {results.map((r, i) => (
             <li
               key={`${r.chunk_id}-${i}`}
-              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900/50"
+              className="card-elevated border border-dl-border p-5 md:p-6"
             >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
-                  <div className="font-semibold text-brand-950 dark:text-slate-50">
+                  <div className="font-display text-lg font-medium text-white">
                     {r.filename}
                   </div>
-                  <div className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Document #{r.document_id} · Chunk {r.chunk_index}
+                  <div className="mt-1 font-mono text-xs text-dl-code">
+                    #{r.document_id} · chunk {r.chunk_index}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setChunkModal(r)}
-                  className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                  className="btn-glass shrink-0 text-xs"
                 >
-                  View full text
+                  Full text
                 </button>
               </div>
 
@@ -195,7 +195,7 @@ export function SearchPage() {
                 <RelevanceBar score={r.score} />
               </div>
 
-              <div className="mt-4 border-t border-slate-100 pt-4 text-sm leading-[1.75] text-slate-700 dark:border-slate-700/80 dark:text-slate-300">
+              <div className="mt-5 border-t border-dl-border pt-5 text-sm leading-relaxed text-dl-muted">
                 {highlightQueryTerms(r.snippet, activeQuery)}
               </div>
             </li>

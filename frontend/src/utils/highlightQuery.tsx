@@ -6,6 +6,7 @@ function escapeRegExp(s: string) {
 
 /**
  * Split query into meaningful tokens (length ≥ 2) and wrap matches in <mark>.
+ * Uses purple-tinted highlight (DESIGN.md — avoid mixing lime with coral in one control).
  */
 export function highlightQueryTerms(text: string, query: string): ReactNode {
   const terms = [
@@ -30,7 +31,7 @@ export function highlightQueryTerms(text: string, query: string): ReactNode {
           return (
             <mark
               key={i}
-              className="rounded-sm bg-amber-200/90 px-0.5 font-medium text-slate-900 dark:bg-amber-500/35 dark:text-amber-50"
+              className="rounded-sm bg-dl-purple/35 px-0.5 font-medium text-white"
             >
               {part}
             </mark>

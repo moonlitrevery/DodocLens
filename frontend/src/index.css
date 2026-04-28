@@ -4,11 +4,53 @@
 
 @layer base {
   html {
-    @apply transition-[color,background-color,border-color] duration-theme ease-out;
+    color-scheme: dark;
+    @apply transition-colors duration-theme ease-out;
   }
 
   body {
-    @apply min-h-screen bg-slate-50 text-slate-900 antialiased dark:bg-[#0b1120] dark:text-slate-100;
+    @apply min-h-screen bg-dl-bg font-sans text-white;
+  }
+}
+
+@layer components {
+  /* DESIGN.md — primary muted purple button */
+  .btn-primary {
+    @apply rounded-[13px] border border-dl-border-btn bg-dl-btn-muted px-4 py-2.5 text-center text-sm font-bold uppercase tracking-[0.2px] text-white shadow-btn-inset transition-shadow duration-theme hover:shadow-btn-hover disabled:pointer-events-none disabled:opacity-45;
+  }
+
+  /* White solid CTA — hover to Sentry purple */
+  .btn-cta {
+    @apply rounded-lg bg-white px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.2px] text-dl-bg shadow-card transition-colors duration-theme hover:bg-dl-purple hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-dl-purple disabled:pointer-events-none disabled:opacity-45;
+  }
+
+  /* Glass secondary */
+  .btn-glass {
+    @apply rounded-xl border border-white/10 bg-dl-glass px-3 py-2 text-center text-sm font-semibold uppercase tracking-[0.2px] text-white shadow-glass backdrop-blur-glass backdrop-saturate-[180%] transition-colors duration-theme hover:bg-dl-glass-hover;
+  }
+
+  .input-field {
+    @apply rounded-input border border-[#cfcfdb] bg-white px-3 py-2 text-sm text-dl-bg placeholder:text-dl-border-btn/80 shadow-none outline-none transition-shadow focus:border-[#cfcfdb] focus:shadow-input-inset disabled:opacity-50;
+  }
+
+  .card-elevated {
+    @apply rounded-xl border border-dl-border bg-dl-bg-deep/80 shadow-card backdrop-blur-sm;
+  }
+
+  .card-glass {
+    @apply rounded-xl border border-white/10 bg-dl-glass/90 shadow-glass backdrop-blur-glass backdrop-saturate-[180%];
+  }
+
+  .section-kicker {
+    @apply text-xs font-semibold uppercase tracking-[0.2px] text-dl-lime;
+  }
+
+  .section-title {
+    @apply font-display text-[1.88rem] font-normal leading-tight tracking-tight text-white;
+  }
+
+  .section-desc {
+    @apply mt-2 max-w-2xl text-base font-normal leading-relaxed text-dl-muted;
   }
 }
 

@@ -9,14 +9,14 @@ import type { DocumentDetail, DocumentSummary } from "../types";
 function statusStyles(status: string) {
   switch (status) {
     case "ready":
-      return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-100";
+      return "border-dl-purple/50 bg-dl-purple/20 text-dl-lime";
     case "processing":
     case "pending":
-      return "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100";
+      return "border-dl-border bg-dl-btn-muted/30 text-dl-coral";
     case "error":
-      return "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200";
+      return "border-dl-pink/40 bg-dl-pink/10 text-dl-coral";
     default:
-      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200";
+      return "border-dl-border bg-dl-bg-deep text-dl-muted";
   }
 }
 
@@ -105,13 +105,12 @@ export function DocumentsPage() {
   };
 
   return (
-    <div className="flex flex-1 flex-col p-8">
-      <header className="mb-6 flex flex-wrap items-end justify-between gap-4">
+    <div className="flex flex-1 flex-col">
+      <header className="mb-8 flex flex-wrap items-end justify-between gap-4 md:mb-10">
         <div>
-          <h2 className="text-2xl font-semibold text-brand-950 dark:text-slate-100">
-            Documents
-          </h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+          <p className="section-kicker">Library</p>
+          <h2 className="section-title">Documents</h2>
+          <p className="section-desc">
             Status refreshes automatically while files are processing.
           </p>
         </div>
@@ -119,7 +118,7 @@ export function DocumentsPage() {
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="btn-glass disabled:opacity-45"
         >
           Refresh
         </button>
@@ -127,28 +126,32 @@ export function DocumentsPage() {
 
       {needsPoll && (
         <div
-          className="mb-4 flex items-center gap-3 rounded-lg border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100"
+          className="card-glass mb-6 flex items-center gap-4 border border-dl-border px-4 py-3"
           role="status"
         >
           <Spinner label="Processing" />
-          <span>
-            <span className="font-semibold">Processing…</span> OCR, chunking,
-            and embeddings are running locally. This can take a minute for large
-            files.
+          <span className="text-sm leading-relaxed text-dl-muted">
+            <span className="font-semibold uppercase tracking-[0.2px] text-dl-coral">
+              Processing…
+            </span>{" "}
+            OCR, chunking, and embeddings are running locally. Large files can
+            take a minute.
           </span>
         </div>
       )}
 
       {loading && list.length === 0 && (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-slate-600 dark:text-slate-400">
+        <div className="flex flex-col items-center justify-center gap-4 py-20 text-dl-muted">
           <Spinner label="Loading documents" />
-          <span className="text-sm">Loading library…</span>
+          <span className="text-sm uppercase tracking-[0.2px]">
+            Loading library…
+          </span>
         </div>
       )}
 
       {err && !loading && (
         <div
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-100"
+          className="mb-6 rounded-xl border border-dl-pink/40 bg-dl-pink/10 px-4 py-3 text-sm text-dl-coral"
           role="alert"
         >
           {err}
@@ -158,7 +161,7 @@ export function DocumentsPage() {
       {!loading && !err && list.length === 0 && (
         <EmptyState
           title="No documents uploaded yet"
-          description="Upload a PDF or image from the Upload tab. Once status shows “ready”, semantic search can find content in that file."
+          description="Upload a PDF or image from the Upload tab. When status shows ready, semantic search can use that file."
           icon={
             <svg
               className="h-6 w-6"
@@ -179,24 +182,24 @@ export function DocumentsPage() {
       )}
 
       {list.length > 0 && (
-        <ul className="mt-2 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white shadow-sm dark:divide-slate-700 dark:border-slate-700 dark:bg-slate-900/40">
+        <ul className="card-elevated divide-y divide-dl-border overflow-hidden rounded-xl border border-dl-border">
           {list.map((d) => (
             <li key={d.id}>
               <button
                 type="button"
                 onClick={() => void openDetail(d.id)}
-                className="flex w-full items-center justify-between gap-4 px-4 py-3.5 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-colors duration-theme hover:bg-white/[0.04]"
               >
                 <div className="min-w-0">
-                  <div className="truncate font-medium text-slate-900 dark:text-slate-100">
+                  <div className="truncate font-medium text-white">
                     {d.filename}
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                  <div className="mt-1 font-mono text-xs text-dl-code">
                     {new Date(d.created_at).toLocaleString()}
                   </div>
                 </div>
                 <span
-                  className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusStyles(d.status)}`}
+                  className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2px] ${statusStyles(d.status)}`}
                 >
                   {d.status === "pending" || d.status === "processing"
                     ? "Processing…"
@@ -210,26 +213,29 @@ export function DocumentsPage() {
 
       {selected && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-[2px] transition-opacity duration-300"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-dl-bg-deep/75 p-4 backdrop-blur-glass backdrop-saturate-[180%]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="doc-detail-title"
           onClick={() => setSelected(null)}
         >
           <div
-            className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-600 dark:bg-slate-900"
+            className="max-h-[85vh] w-full max-w-2xl overflow-hidden rounded-xl border border-dl-border bg-dl-bg-deep/95 shadow-btn-hover backdrop-blur-md"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-700">
-              <div>
+            <div className="flex items-start justify-between gap-4 border-b border-dl-border px-5 py-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.25px] text-dl-muted">
+                  Document
+                </p>
                 <h3
                   id="doc-detail-title"
-                  className="text-lg font-semibold text-brand-950 dark:text-slate-50"
+                  className="mt-1 truncate font-display text-xl font-semibold text-white"
                 >
                   {selected.filename}
                 </h3>
                 <span
-                  className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${statusStyles(selected.status)}`}
+                  className={`mt-3 inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2px] ${statusStyles(selected.status)}`}
                 >
                   {selected.status}
                 </span>
@@ -237,24 +243,24 @@ export function DocumentsPage() {
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                className="btn-glass shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.2px]"
                 aria-label="Close"
               >
-                ✕
+                Close
               </button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto px-5 py-4 text-sm">
               {selected.error_message && (
-                <p className="mb-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 dark:border-red-800/50 dark:bg-red-950/50 dark:text-red-100">
+                <p className="mb-4 rounded-lg border border-dl-pink/40 bg-dl-pink/10 p-3 text-dl-coral">
                   {selected.error_message}
                 </p>
               )}
               {selected.extracted_text_preview ? (
-                <pre className="whitespace-pre-wrap font-sans leading-relaxed text-slate-700 dark:text-slate-200">
+                <pre className="whitespace-pre-wrap font-mono text-sm leading-relaxed text-dl-muted">
                   {selected.extracted_text_preview}
                 </pre>
               ) : (
-                <p className="text-slate-500 dark:text-slate-400">
+                <p className="text-dl-muted">
                   {selected.status === "ready"
                     ? "No preview text stored for this document."
                     : "Preview will appear when processing completes."}
