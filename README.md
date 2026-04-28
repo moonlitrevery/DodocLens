@@ -36,7 +36,7 @@ The **Electron** shell starts (or attaches to) the **FastAPI** backend and serve
 | Layer | Role |
 |--------|------|
 | **Electron** (`electron/main.cjs`) | Opens the window, optionally spawns `backend/main.py`, waits for `GET /health`, loads the UI (dev server or `frontend/dist`). |
-| **React + Vite** (`frontend/`) | SPA: upload, document list, semantic search, theme toggle; talks to the API over HTTP (Axios). |
+| **React + Vite** (`frontend/`) | SPA: upload, document list, semantic search; talks to the API over HTTP (Axios). |
 | **FastAPI** (`backend/`) | REST API, background processing, SQLite access, embedding + search orchestration. |
 | **SQLite** | `documents` and `chunks` tables; file metadata, chunk text, and serialized embedding vectors. |
 | **Local AI** | **sentence-transformers** + **PyTorch** for embeddings; **scikit-learn** for cosine similarity. |
@@ -108,6 +108,7 @@ Trade-off: you maintain **PyTorch** + model weights locally and accept **CPU/GPU
 | **No external AI APIs** | Aligns with **privacy**, **offline**, and **zero recurring cost** goals; mandatory for many legal/medical scenarios. |
 | **Embeddings in SQLite as JSON** | Keeps the stack simple; acceptable for thousands of chunks. At larger scale, consider a vector DB or binary storage. |
 | **Electron + spawned Python** | Reuses a mature web UI while keeping ML in Python. Packaged installers still need a clear story for **bundled or system Python** (see packaging). |
+| **uv** (`backend/pyproject.toml`, `uv.lock`) | Fast, reproducible Python environments; `uv sync` creates `.venv` and installs the locked dependency tree. |
 
 **Trade-offs:** very large libraries will be slower to index on CPU; global search loads all chunk vectors into memory for similarity — fine for MVP, revisit for scale.
 
@@ -117,8 +118,9 @@ Trade-off: you maintain **PyTorch** + model weights locally and accept **CPU/GPU
 
 ### Prerequisites
 
-- **Python 3.10+**, **Node.js 18+**
-- **Tesseract** installed and on `PATH` (required for OCR paths)
+- **[uv](https://docs.astral.sh/uv/getting-started/installation/)** (installs and manages Python **3.10+** per `backend/pyproject.toml`)
+- **Node.js 18+** and **npm**
+- **Tesseract** on `PATH` (required whenever OCR runs: images and low-text PDFs)
 
 #### Tesseract on Windows
 
@@ -130,21 +132,32 @@ Trade-off: you maintain **PyTorch** + model weights locally and accept **CPU/GPU
 **Arch Linux:** `sudo pacman -S tesseract tesseract-data-eng`  
 **Debian/Ubuntu:** `sudo apt install tesseract-ocr`
 
-### Backend (Python)
+### Backend (FastAPI)
+
+Dependencies live in **`backend/pyproject.toml`**; the lockfile is **`backend/uv.lock`**.
+
+From the **backend** directory:
 
 ```bash
 cd backend
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python3 main.py                    # http://127.0.0.1:8000
+uv sync
+uv run python main.py
 ```
 
-The first run may download the embedding model into the Hugging Face cache (~90MB).
+This creates or updates **`backend/.venv`**, installs the locked runtime dependencies, and serves the API at **http://127.0.0.1:8000**.
 
-### Frontend (web UI only)
+- **Optional dev tools** (pytest, httpx, etc.): `uv sync --all-groups` or `uv sync --group dev`.
+- **First run:** sentence-transformers may download the embedding model into the Hugging Face cache (~90 MB). Ensure you are online once, or point `HF_HOME` / cache env vars at an existing cache.
 
-With the API already running:
+Equivalent one-liner without activating a shell:
+
+```bash
+cd backend && uv sync && uv run python main.py
+```
+
+### Frontend (browser only)
+
+With the backend already running:
 
 ```bash
 cd frontend
@@ -152,37 +165,52 @@ npm install
 npm run dev
 ```
 
-Optional: `VITE_API_URL` if the API is not at `http://127.0.0.1:8000`.
+Vite serves the UI (default **http://127.0.0.1:5173**). If the API is not at `http://127.0.0.1:8000`, set **`VITE_API_URL`** (no trailing slash) before `npm run dev`.
 
-### Full desktop (Electron + Vite)
+### Full desktop (Electron + Vite + backend)
 
 From the **repository root**:
 
+1. Install Python dependencies and root + frontend npm packages.
+2. Start the dev script (Vite + Electron).
+
 ```bash
-cd backend && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt && cd ..
-npm install && cd frontend && npm install && cd ..
+cd backend && uv sync && cd ..
+npm install
+npm install --prefix frontend
 npm run dev
 ```
 
-Electron probes `http://127.0.0.1:8000/health`; if nothing responds quickly, it spawns `python3 backend/main.py` (or `python` on Windows).
+**What happens:** `npm run dev` runs the Vite dev server and then Electron. Electron checks **http://127.0.0.1:8000/health**; if the API is down, it spawns **`python3 backend/main.py`** (or **`python`** on Windows). That only works if a working interpreter and packages exist—**prefer running the API yourself** with `uv` and pointing Electron at that interpreter.
 
-**Use the venv interpreter from Electron:**
+**Point Electron at the uv-managed interpreter** (recommended):
 
 ```bash
 export DODOC_PYTHON="$(pwd)/backend/.venv/bin/python"
 npm run dev
 ```
 
-Windows PowerShell:  
-`$env:DODOC_PYTHON = "...\backend\.venv\Scripts\python.exe"`
+Windows PowerShell:
 
-### Production-style run (no Vite dev server)
+```powershell
+$env:DODOC_PYTHON = "C:\path\to\DodocLens\backend\.venv\Scripts\python.exe"
+npm run dev
+```
+
+After `uv sync`, `.venv` lives under **`backend/.venv`**.
+
+### Production-style run (built SPA, no Vite dev server)
+
+From the **repository root**, install dependencies, then start Electron (the **`electron:prod`** script builds the frontend and loads `frontend/dist`):
 
 ```bash
+cd backend && uv sync && cd ..
 npm install
-cd frontend && npm install && npm run build && cd ..
+npm install --prefix frontend
 npm run electron:prod
 ```
+
+Set **`DODOC_PYTHON`** the same way as in full desktop dev if Electron should spawn the backend with your uv-managed interpreter.
 
 ---
 

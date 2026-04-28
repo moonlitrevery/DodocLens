@@ -32,7 +32,8 @@
       "electron/**/*",
       "frontend/dist/**/*",
       "backend/**/*.py",
-      "backend/requirements.txt",
+      "backend/pyproject.toml",
+      "backend/uv.lock",
       "!backend/data/**",
       "!backend/**/__pycache__/**"
     ],
