@@ -29,7 +29,9 @@ class SearchResultItem(BaseModel):
     full_text: str = Field(
         description="Complete chunk text (snippet is a shortened preview)."
     )
-    score: float = Field(description="Cosine similarity in [0, 1]")
+    score: float = Field(
+        description="Cosine similarity mapped to [0, 1] as (cosine_sim + 1) / 2."
+    )
 
 
 class SearchRequest(BaseModel):

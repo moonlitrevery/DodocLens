@@ -6,12 +6,12 @@ import logging
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from models.orm import Chunk, Document
 from models.schemas import SearchResultItem
 from services.embeddings import embed_query, json_to_embedding
-import re
 
 logger = logging.getLogger(__name__)
 
@@ -20,37 +20,39 @@ TOP_K = 5
 # cutoff with MiniLM; without a fallback the UI shows “no results” while the index is fine.
 MIN_SCORE = 0.28
 
-def highlight_text(text: str, query: str, window: int = 200) -> str:
-    query_terms = query.lower().split()
 
+def search_snippet_plain(text: str, query: str, window: int = 200) -> str:
+    """Short plain-text window around the first query-term hit (UI highlights in React)."""
     lower_text = text.lower()
     start_idx = 0
-
-    for term in query_terms:
+    for term in query.lower().split():
+        if not term:
+            continue
         idx = lower_text.find(term)
         if idx != -1:
             start_idx = idx
             break
-
     start = max(0, start_idx - window)
     end = min(len(text), start_idx + window)
+    return text[start:end]
 
-    snippet = text[start:end]
 
-    for term in query_terms:
-        snippet = re.sub(
-            f"({re.escape(term)})",
-            r"<mark>\1</mark>",
-            snippet,
-            flags=re.IGNORECASE,
-        )
-
-    return snippet
+def _load_chunks_by_doc_index(
+    db: Session, pairs: set[tuple[int, int]]
+) -> dict[tuple[int, int], Chunk]:
+    if not pairs:
+        return {}
+    rows = (
+        db.query(Chunk)
+        .filter(tuple_(Chunk.document_id, Chunk.chunk_index).in_(list(pairs)))
+        .all()
+    )
+    return {(c.document_id, c.chunk_index): c for c in rows}
 
 
 def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     q = embed_query(query).reshape(1, -1)
-    rows = db.query(Chunk, Document).join(Document).limit(1000).all()
+    rows = db.query(Chunk, Document).join(Document).all()
     if not rows:
         return []
 
@@ -81,34 +83,29 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
             TOP_K,
         )
 
+    neighbor_pairs: set[tuple[int, int]] = set()
+    for idx in filtered:
+        ch, _doc = meta[int(idx)]
+        neighbor_pairs.add((ch.document_id, ch.chunk_index))
+        if ch.chunk_index > 0:
+            neighbor_pairs.add((ch.document_id, ch.chunk_index - 1))
+        neighbor_pairs.add((ch.document_id, ch.chunk_index + 1))
+    chunk_by_key = _load_chunks_by_doc_index(db, neighbor_pairs)
+
     results: list[SearchResultItem] = []
     for idx in filtered:
         score = float((sims[idx] + 1) / 2)
         ch, doc = meta[int(idx)]
         context_text = ch.text
-        prev_chunk = (
-            db.query(Chunk)
-            .filter(
-                Chunk.document_id == ch.document_id,
-                Chunk.chunk_index == ch.chunk_index - 1,
-            )
-            .first()
-        )
-        next_chunk = (
-            db.query(Chunk)
-            .filter(
-                Chunk.document_id == ch.document_id,
-                Chunk.chunk_index == ch.chunk_index + 1,
-            )
-            .first()
-        )
+        prev_chunk = chunk_by_key.get((ch.document_id, ch.chunk_index - 1))
+        next_chunk = chunk_by_key.get((ch.document_id, ch.chunk_index + 1))
         if prev_chunk:
             context_text = prev_chunk.text + "\n\n" + context_text
 
         if next_chunk:
             context_text = context_text + "\n\n" + next_chunk.text
 
-        snippet = highlight_text(context_text, query)
+        snippet = search_snippet_plain(context_text, query)
 
         results.append(
             SearchResultItem(

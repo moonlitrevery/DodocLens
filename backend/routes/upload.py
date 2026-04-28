@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Guardrail for in-memory upload reads (tune if you need larger PDFs).
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024
+
 ALLOWED_TYPES = {
     "application/pdf",
     "image/png",
@@ -55,6 +58,11 @@ async def upload_document(
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty file.")
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File too large. Maximum size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+        )
 
     path = save_upload(file.filename or "document", data)
     doc = Document(
