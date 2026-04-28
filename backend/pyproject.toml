@@ -1,0 +1,32 @@
+
+[project]
+name = "dodoclens"
+version = "0.6.5"
+description = ""
+requires-python = ">=3.10"
+ 
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "python-multipart==0.0.20",
+    "sqlalchemy==2.0.36",
+    "pydantic==2.10.3",
+    "sentence-transformers==3.3.1",
+    "torch>=2.0.0",
+    "PyMuPDF==1.24.14",
+    "pytesseract==0.3.13",
+    "Pillow==11.0.0",
+    "numpy>=1.26.0",
+    "scikit-learn>=1.5.0",
+    "aiofiles==24.1.0",
+]
+ 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+]
+ 
+[tool.uv]
+package = false
+ 
