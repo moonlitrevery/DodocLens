@@ -12,8 +12,6 @@
 
 <hr>
 
-<!-- Substitua por banner ou captura de tela real -->
-
 <p align="center">
   <img src="./docs/banner.png" alt="Banner DodocLens" width="720" />
 </p>
