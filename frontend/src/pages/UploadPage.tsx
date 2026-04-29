@@ -415,13 +415,11 @@ export function UploadPage() {
             >
               {lastDoc.status === "pending" || lastDoc.status === "processing"
                 ? "Processando…"
-                : lastDoc.status === "ready"
-                  ? "Pronto"
-                  : lastDoc.status === "error"
-                    ? "Erro"
-                    : lastDoc.status === "pending"
-                      ? "Aguardando"
-                      : lastDoc.status}
+                : lastDoc.status === "ready" ? "Pronto"
+                : lastDoc.status === "error" ? "Erro"
+                : lastDoc.status === "processing" ? "Processando…"
+                : lastDoc.status === "pending" ? "Aguardando"
+                : lastDoc.status}
             </span>
           </div>
           {lastDoc.status === "pending" || lastDoc.status === "processing" ? (
