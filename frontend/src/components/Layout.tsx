@@ -16,7 +16,7 @@ export function Layout() {
         <button
           type="button"
           className="fixed inset-0 z-30 bg-dl-bg-deep/70 backdrop-blur-sm md:hidden"
-          aria-label="Close menu"
+          aria-label="Fechar menu"
           onClick={() => setMobileNavOpen(false)}
         />
       )}
@@ -60,7 +60,7 @@ export function Layout() {
               DodocLens
             </div>
             <p className="truncate text-xs uppercase tracking-[0.2px] text-dl-muted">
-              Local document intelligence
+              Inteligencia local de documentos
             </p>
           </div>
         </header>

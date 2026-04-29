@@ -25,7 +25,7 @@ export function Spinner({
       {label ? (
         <span className="sr-only">{label}</span>
       ) : (
-        <span className="sr-only">Loading</span>
+        <span className="sr-only">Carregando</span>
       )}
     </span>
   );

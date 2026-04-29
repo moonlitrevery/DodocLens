@@ -25,22 +25,21 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       ].join(" ")}
     >
       <div className="border-b border-dl-border px-4 py-6 md:py-8">
-        <p className="section-kicker">Workspace</p>
+        <p className="section-kicker">Espaço de trabalho</p>
         <h1 className="mt-2 font-display text-2xl font-bold leading-tight tracking-tight text-white md:text-[1.6rem]">
           DodocLens
         </h1>
         <p className="mt-2 text-sm font-normal leading-relaxed text-dl-muted">
-          Local OCR, embeddings, and semantic search — nothing leaves your
-          machine.
+          Seus documentos ficam só com você. Busca inteligente, sem internet.
         </p>
       </div>
 
       <nav
         className="flex flex-1 flex-col gap-1 p-3"
-        aria-label="Main navigation"
+        aria-label="Navegação principal"
       >
         <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.25px] text-dl-muted/80">
-          Navigate
+          Navegar
         </p>
         <NavLink
           to="/"
@@ -48,27 +47,27 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
           onClick={onCloseMobile}
           className={({ isActive }) => navClass(isActive)}
         >
-          Upload
+          Enviar
         </NavLink>
         <NavLink
           to="/documents"
           onClick={onCloseMobile}
           className={({ isActive }) => navClass(isActive)}
         >
-          Documents
+          Documentos
         </NavLink>
         <NavLink
           to="/search"
           onClick={onCloseMobile}
           className={({ isActive }) => navClass(isActive)}
         >
-          Search
+          Busca
         </NavLink>
       </nav>
 
       <div className="border-t border-dl-border p-3">
         <p className="px-3 text-[10px] font-semibold uppercase tracking-[0.25px] text-dl-muted/70">
-          Build
+          Versão
         </p>
         <p className="mt-2 px-3 font-mono text-xs text-dl-code">v0.1 · local-first</p>
       </div>

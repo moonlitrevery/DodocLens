@@ -52,16 +52,16 @@ async def upload_document(
     if not mime:
         raise HTTPException(
             status_code=400,
-            detail="Only PDF, PNG, and JPG are supported.",
+            detail="Apenas PDF, PNG e JPG são suportados.",
         )
 
     data = await file.read()
     if not data:
-        raise HTTPException(status_code=400, detail="Empty file.")
+        raise HTTPException(status_code=400, detail="Arquivo vazio.")
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(
             status_code=413,
-            detail=f"File too large. Maximum size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
+            detail=f"Arquivo muito grande. O tamanho máximo é {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
         )
 
     path = save_upload(file.filename or "document", data)

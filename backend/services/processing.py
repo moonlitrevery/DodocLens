@@ -17,6 +17,16 @@ from utils.text import normalize_text
 logger = logging.getLogger(__name__)
 
 
+def _translate_processing_error(msg: str) -> str:
+    low = msg.lower()
+    if "tesseract is not installed or it's not in your path" in low:
+        return (
+            "O Tesseract não está instalado ou não está no PATH. "
+            "Consulte o README para instruções de instalação."
+        )
+    return msg
+
+
 def process_document(document_id: int) -> None:
     db: Session = SessionLocal()
     try:
@@ -59,7 +69,7 @@ def process_document(document_id: int) -> None:
         doc = db.get(Document, document_id)
         if doc:
             doc.status = "error"
-            doc.error_message = str(e)[:2000]
+            doc.error_message = _translate_processing_error(str(e))[:2000]
             db.commit()
     finally:
         db.close()

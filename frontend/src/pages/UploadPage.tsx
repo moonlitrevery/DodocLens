@@ -31,7 +31,7 @@ export function UploadPage() {
       if (!isAllowedFile(file)) {
         showToast({
           variant: "error",
-          message: "Invalid file type. Use PDF, PNG, or JPG only.",
+          message: "Tipo de arquivo invalido. Use apenas PDF, PNG ou JPG.",
         });
         return;
       }
@@ -54,13 +54,13 @@ export function UploadPage() {
         setProgress(100);
         showToast({
           variant: "success",
-          message: `Uploaded “${data.filename}”. Processing in the background.`,
+          message: `Arquivo “${data.filename}” enviado. Processamento em segundo plano.`,
         });
       } catch (e: unknown) {
-        let msg = "Upload failed.";
+        let msg = "Falha no envio.";
         if (axios.isAxiosError(e)) {
           if (e.code === "ERR_NETWORK" || !e.response) {
-            msg = "Cannot reach the backend. Is the API running?";
+            msg = "Não foi possível conectar ao backend. A API está em execução?";
           } else {
             const d = e.response?.data as { detail?: string } | undefined;
             if (d?.detail) msg = String(d.detail);
@@ -89,13 +89,13 @@ export function UploadPage() {
         if (data.status === "ready") {
           showToast({
             variant: "success",
-            message: `Processing finished: “${data.filename}” is ready to search.`,
+            message: `Processamento concluído: “${data.filename}” pronto para busca.`,
           });
           window.clearInterval(intervalId);
         } else if (data.status === "error") {
           showToast({
             variant: "error",
-            message: `Processing failed for “${data.filename}”.`,
+            message: `Falha no processamento de “${data.filename}”.`,
           });
           window.clearInterval(intervalId);
         }
@@ -119,11 +119,11 @@ export function UploadPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mb-10 md:mb-16">
-        <p className="section-kicker">Ingest</p>
-        <h2 className="section-title">Upload documents</h2>
+        <p className="section-kicker">Ingestão</p>
+        <h2 className="section-title">Enviar documentos</h2>
         <p className="section-desc">
-          PDF, PNG, or JPG. Files stay on this machine; OCR and embeddings run
-          locally.
+          PDF, PNG ou JPG. Os arquivos ficam nesta máquina; OCR e embeddings
+          rodam localmente.
         </p>
       </header>
 
@@ -165,19 +165,19 @@ export function UploadPage() {
 
         {uploading && (
           <div className="absolute inset-0 z-10 flex flex-col items-center justify-center rounded-[inherit] bg-dl-bg-deep/90 backdrop-blur-sm">
-            <Spinner onDark label="Uploading file" />
+            <Spinner onDark label="Enviando arquivo" />
             <p className="mt-4 text-sm font-semibold uppercase tracking-[0.2px] text-dl-muted">
-              Uploading…
+              Enviando…
             </p>
           </div>
         )}
 
         <div className="text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2px] text-white">
-            Drag and drop a file here
+            Arraste e solte um arquivo aqui
           </p>
           <p className="mt-2 text-sm text-dl-muted">
-            or click to choose · PDF, PNG, JPG
+            ou clique para escolher · PDF, PNG, JPG
           </p>
           <button
             type="button"
@@ -188,7 +188,7 @@ export function UploadPage() {
             }}
             disabled={uploading}
           >
-            Choose file
+            Escolher arquivo
           </button>
         </div>
       </div>
@@ -196,7 +196,7 @@ export function UploadPage() {
       {uploading && (
         <div className="mt-8">
           <div className="mb-2 flex justify-between text-xs font-semibold uppercase tracking-[0.2px] text-dl-muted">
-            <span>Transfer</span>
+            <span>Transferência</span>
             <span>{progress}%</span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-dl-border">
@@ -225,16 +225,22 @@ export function UploadPage() {
               }`}
             >
               {lastDoc.status === "pending" || lastDoc.status === "processing"
-                ? "Processing…"
-                : lastDoc.status}
+                ? "Processando…"
+                : lastDoc.status === "ready"
+                  ? "Pronto"
+                  : lastDoc.status === "error"
+                    ? "Erro"
+                    : lastDoc.status === "pending"
+                      ? "Aguardando"
+                      : lastDoc.status}
             </span>
           </div>
           {lastDoc.status === "pending" || lastDoc.status === "processing" ? (
             <p className="mt-3 text-sm leading-relaxed text-dl-muted">
-              Processing runs in the background. You will get a toast when it
-              finishes, or open{" "}
-              <span className="font-medium text-dl-purple">Documents</span> for
-              the full library.
+              O processamento roda em segundo plano. Você receberá um toast
+              quando terminar, ou abra{" "}
+              <span className="font-medium text-dl-purple">Documentos</span>{" "}
+              para ver a biblioteca completa.
             </p>
           ) : null}
         </div>

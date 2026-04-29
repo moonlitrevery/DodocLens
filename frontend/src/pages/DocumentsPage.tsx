@@ -45,7 +45,7 @@ export function DocumentsPage() {
           ) {
             showToast({
               variant: "success",
-              message: `Document ready: “${d.filename}”. You can search it now.`,
+              message: `Documento pronto: “${d.filename}”. Você já pode pesquisar.`,
             });
           }
           if (
@@ -55,7 +55,7 @@ export function DocumentsPage() {
           ) {
             showToast({
               variant: "error",
-              message: `Processing failed for “${d.filename}”. ${d.error_message || "See details in the document preview."}`,
+              message: `Falha no processamento de “${d.filename}”. ${d.error_message || "Veja os detalhes na visualização do documento."}`,
             });
           }
         }
@@ -66,9 +66,9 @@ export function DocumentsPage() {
       prevStatusRef.current = next;
       initializedRef.current = true;
     } catch (e: unknown) {
-      let msg = "Could not load documents.";
+      let msg = "Não foi possível carregar os documentos.";
       if (axios.isAxiosError(e) && (e.code === "ERR_NETWORK" || !e.response)) {
-        msg = "Backend offline — start the API or launch the full desktop app.";
+        msg = "Backend offline — inicie a API ou abra o app desktop completo.";
       }
       setErr(msg);
       showToast({ variant: "error", message: msg });
@@ -99,7 +99,7 @@ export function DocumentsPage() {
       setSelected(null);
       showToast({
         variant: "error",
-        message: "Could not load document details.",
+        message: "Não foi possível carregar os detalhes do documento.",
       });
     }
   };
@@ -108,10 +108,10 @@ export function DocumentsPage() {
     <div className="flex flex-1 flex-col">
       <header className="mb-8 flex flex-wrap items-end justify-between gap-4 md:mb-10">
         <div>
-          <p className="section-kicker">Library</p>
-          <h2 className="section-title">Documents</h2>
+          <p className="section-kicker">Biblioteca</p>
+          <h2 className="section-title">Documentos</h2>
           <p className="section-desc">
-            Status refreshes automatically while files are processing.
+            O status é atualizado automaticamente enquanto os arquivos são processados.
           </p>
         </div>
         <button
@@ -120,7 +120,7 @@ export function DocumentsPage() {
           disabled={loading}
           className="btn-glass disabled:opacity-45"
         >
-          Refresh
+          Atualizar
         </button>
       </header>
 
@@ -129,22 +129,22 @@ export function DocumentsPage() {
           className="card-glass mb-6 flex items-center gap-4 border border-dl-border px-4 py-3"
           role="status"
         >
-          <Spinner label="Processing" />
+          <Spinner label="Processando" />
           <span className="text-sm leading-relaxed text-dl-muted">
             <span className="font-semibold uppercase tracking-[0.2px] text-dl-coral">
-              Processing…
+              Processando…
             </span>{" "}
-            OCR, chunking, and embeddings are running locally. Large files can
-            take a minute.
+            OCR, chunking e embeddings estao sendo executados localmente.
+            Arquivos grandes podem levar um minuto.
           </span>
         </div>
       )}
 
       {loading && list.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 py-20 text-dl-muted">
-          <Spinner label="Loading documents" />
+          <Spinner label="Carregando documentos" />
           <span className="text-sm uppercase tracking-[0.2px]">
-            Loading library…
+            Carregando biblioteca…
           </span>
         </div>
       )}
@@ -160,8 +160,8 @@ export function DocumentsPage() {
 
       {!loading && !err && list.length === 0 && (
         <EmptyState
-          title="No documents uploaded yet"
-          description="Upload a PDF or image from the Upload tab. When status shows ready, semantic search can use that file."
+          title="Nenhum documento enviado ainda"
+          description="Envie um PDF ou imagem na aba Enviar. Quando o status aparecer como pronto, a busca semântica poderá usar esse arquivo."
           icon={
             <svg
               className="h-6 w-6"
@@ -202,8 +202,14 @@ export function DocumentsPage() {
                   className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2px] ${statusStyles(d.status)}`}
                 >
                   {d.status === "pending" || d.status === "processing"
-                    ? "Processing…"
-                    : d.status}
+                    ? "Processando…"
+                    : d.status === "ready"
+                      ? "Pronto"
+                      : d.status === "error"
+                        ? "Erro"
+                        : d.status === "pending"
+                          ? "Aguardando"
+                          : d.status}
                 </span>
               </button>
             </li>
@@ -226,7 +232,7 @@ export function DocumentsPage() {
             <div className="flex items-start justify-between gap-4 border-b border-dl-border px-5 py-4">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.25px] text-dl-muted">
-                  Document
+                  Documento
                 </p>
                 <h3
                   id="doc-detail-title"
@@ -237,16 +243,24 @@ export function DocumentsPage() {
                 <span
                   className={`mt-3 inline-block rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.2px] ${statusStyles(selected.status)}`}
                 >
-                  {selected.status}
+                  {selected.status === "processing"
+                    ? "Processando"
+                    : selected.status === "ready"
+                      ? "Pronto"
+                      : selected.status === "error"
+                        ? "Erro"
+                        : selected.status === "pending"
+                          ? "Aguardando"
+                          : selected.status}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => setSelected(null)}
                 className="btn-glass shrink-0 rounded-lg px-3 py-2 text-xs font-bold uppercase tracking-[0.2px]"
-                aria-label="Close"
+                aria-label="Fechar"
               >
-                Close
+                Fechar
               </button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto px-5 py-4 text-sm">
@@ -262,8 +276,8 @@ export function DocumentsPage() {
               ) : (
                 <p className="text-dl-muted">
                   {selected.status === "ready"
-                    ? "No preview text stored for this document."
-                    : "Preview will appear when processing completes."}
+                    ? "Nenhum texto de visualização foi armazenado para este documento."
+                    : "A visualização aparecerá quando o processamento terminar."}
                 </p>
               )}
             </div>

@@ -37,10 +37,10 @@ export function SearchPage() {
     } catch (e: unknown) {
       setResults([]);
       let msg =
-        "Search failed. Try again when documents are indexed and the backend is running.";
+        "Falha na busca. Tente novamente quando os documentos estiverem indexados e o backend estiver em execução.";
       if (axios.isAxiosError(e)) {
         if (e.code === "ERR_NETWORK" || !e.response) {
-          msg = "Cannot reach the backend. Is the API running on port 8000?";
+          msg = "Não foi possível conectar ao backend. A API está rodando na porta 8000?";
         } else if (typeof e.response?.data === "object" && e.response.data) {
           const d = e.response.data as { detail?: string };
           if (d.detail) msg = String(d.detail);
@@ -56,11 +56,11 @@ export function SearchPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="mb-8 md:mb-10">
-        <p className="section-kicker">Retrieve</p>
-        <h2 className="section-title">Semantic search</h2>
+        <p className="section-kicker">Consulta</p>
+        <h2 className="section-title">Busca semântica</h2>
         <p className="section-desc">
-          Natural-language queries over your local library. Results are ranked
-          by embedding similarity (top 5).
+          Consultas em linguagem natural sobre sua biblioteca local. Os
+          resultados são ordenados por similaridade de embeddings (top 5).
         </p>
       </header>
 
@@ -70,7 +70,7 @@ export function SearchPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && void runSearch()}
-          placeholder="e.g. patient follow-up plan, limitation of liability…"
+          placeholder="ex.: plano de acompanhamento do paciente, limitação de responsabilidade…"
           disabled={loading}
           className="input-field min-h-11 w-full flex-1 sm:min-h-[3rem]"
         />
@@ -82,11 +82,11 @@ export function SearchPage() {
         >
           {loading ? (
             <>
-              <Spinner onDark label="Searching" />
-              Searching…
+              <Spinner onDark label="Pesquisando" />
+              Pesquisando…
             </>
           ) : (
-            "Search"
+            "Pesquisar"
           )}
         </button>
       </div>
@@ -103,19 +103,19 @@ export function SearchPage() {
       <section className="mt-12 space-y-6 md:mt-16">
         <div className="flex items-center justify-between gap-4">
           <h3 className="text-sm font-semibold uppercase tracking-[0.2px] text-dl-muted">
-            Results
+            Resultados
           </h3>
           {hasSearched && !loading && results.length > 0 && (
             <span className="text-xs font-medium uppercase tracking-[0.2px] text-dl-muted">
-              {results.length} match{results.length === 1 ? "" : "es"}
+              {results.length} resultado{results.length === 1 ? "" : "s"}
             </span>
           )}
         </div>
 
         {!hasSearched && (
           <EmptyState
-            title="Search your documents"
-            description="Enter a question or keywords. We match meaning—not just exact words—using locally computed embeddings."
+            title="Pesquise nos seus documentos"
+            description="Digite uma pergunta ou palavras-chave. Encontramos significado — não apenas palavras exatas — usando embeddings calculados localmente."
             icon={
               <svg
                 className="h-6 w-6"
@@ -137,8 +137,8 @@ export function SearchPage() {
 
         {hasSearched && !loading && !error && results.length === 0 && (
           <EmptyState
-            title="No results for this query"
-            description="Try different wording, upload more documents, or wait until processing finishes."
+            title="Nenhum resultado para esta consulta"
+            description="Tente uma redação diferente, envie mais documentos ou aguarde o fim do processamento."
             icon={
               <svg
                 className="h-6 w-6"
@@ -160,9 +160,9 @@ export function SearchPage() {
 
         {loading && (
           <div className="card-glass flex items-center gap-4 border border-dl-border px-5 py-4 text-sm text-dl-muted">
-            <Spinner label="Searching" />
+            <Spinner label="Pesquisando" />
             <span className="uppercase tracking-[0.2px]">
-              Searching the index…
+              Pesquisando no índice…
             </span>
           </div>
         )}
@@ -179,7 +179,7 @@ export function SearchPage() {
                     {r.filename}
                   </div>
                   <div className="mt-1 font-mono text-xs text-dl-code">
-                    #{r.document_id} · chunk {r.chunk_index}
+                    #{r.document_id} · trecho {r.chunk_index}
                   </div>
                 </div>
                 <button
@@ -187,7 +187,7 @@ export function SearchPage() {
                   onClick={() => setChunkModal(r)}
                   className="btn-glass shrink-0 text-xs"
                 >
-                  Full text
+                  Texto completo
                 </button>
               </div>
 

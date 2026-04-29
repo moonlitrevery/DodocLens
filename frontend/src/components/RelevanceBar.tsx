@@ -5,10 +5,10 @@ export function RelevanceBar({ score }: { score: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2 text-xs uppercase tracking-[0.2px] text-dl-muted">
-        <span className="font-semibold text-dl-muted">Relevance</span>
+        <span className="font-semibold text-dl-muted">Relevância</span>
         <span
           className="font-bold tabular-nums text-dl-lime"
-          title={`Mapped similarity ${clamped.toFixed(3)}`}
+          title={`Similaridade mapeada ${clamped.toFixed(3)}`}
         >
           {pct}%
         </span>
@@ -19,7 +19,7 @@ export function RelevanceBar({ score }: { score: number }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        aria-label={`Relevance ${pct} percent`}
+        aria-label={`Relevância ${pct} por cento`}
       >
         <div
           className="h-full rounded-full bg-gradient-to-r from-dl-purple to-dl-lime transition-all duration-500"

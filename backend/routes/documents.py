@@ -26,5 +26,5 @@ def list_documents(db: Session = Depends(get_db)):
 def get_document(document_id: int, db: Session = Depends(get_db)):
     doc = db.get(Document, document_id)
     if not doc:
-        raise HTTPException(status_code=404, detail="Document not found.")
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
     return doc
