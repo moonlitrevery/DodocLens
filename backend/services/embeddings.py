@@ -11,7 +11,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+_MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 _model_lock = threading.Lock()
 _model = None
 
