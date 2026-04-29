@@ -25,3 +25,6 @@ release/
 .DS_Store
 Thumbs.db
 DESIGN.md
+
+#enviroments
+.env
