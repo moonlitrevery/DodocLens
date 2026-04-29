@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.connection import Base, engine
-from routes import documents, search, upload
+from routes import batch, documents, search, upload
 
 logging.basicConfig(
     level=logging.INFO,
@@ -50,6 +50,7 @@ app.add_middleware(
 )
 
 app.include_router(upload.router)
+app.include_router(batch.router)
 app.include_router(documents.router)
 app.include_router(search.router)
 

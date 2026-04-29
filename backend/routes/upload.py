@@ -22,6 +22,7 @@ MAX_UPLOAD_BYTES = 100 * 1024 * 1024
 
 ALLOWED_TYPES = {
     "application/pdf",
+    "text/plain",
     "image/png",
     "image/jpeg",
     "image/jpg",
@@ -37,6 +38,8 @@ def _normalize_mime(upload: UploadFile) -> str:
         return "application/pdf"
     if name.endswith(".png"):
         return "image/png"
+    if name.endswith(".txt"):
+        return "text/plain"
     if name.endswith((".jpg", ".jpeg")):
         return "image/jpeg"
     return ""

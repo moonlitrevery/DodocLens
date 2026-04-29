@@ -1,4 +1,4 @@
-const { contextBridge } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
 /**
  * Expose a minimal, read-only bridge if the UI needs native hints later.
@@ -6,4 +6,8 @@ const { contextBridge } = require("electron");
  */
 contextBridge.exposeInMainWorld("dodoclens", {
   platform: process.platform,
+});
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  selectFolder: () => ipcRenderer.invoke("select-folder"),
 });

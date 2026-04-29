@@ -80,6 +80,8 @@ def extract_text(path: Path, mime_type: str) -> str:
     mt = (mime_type or "").lower()
     suffix = path.suffix.lower()
 
+    if mt == "text/plain" or suffix == ".txt":
+        return path.read_text(encoding="utf-8", errors="replace")
     if mt.startswith("image/") or suffix in {".png", ".jpg", ".jpeg", ".webp", ".tif", ".tiff"}:
         return extract_from_image(path)
     if mt == "application/pdf" or suffix == ".pdf":

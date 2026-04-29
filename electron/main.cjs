@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain } = require("electron");
 const fs = require("fs");
 const path = require("path");
 const { spawn } = require("child_process");
@@ -18,6 +18,7 @@ function projectRoot() {
 }
 
 const MAIN_PY = path.join(projectRoot(), "backend", "main.py");
+const IMPORTABLE_EXTENSIONS = new Set([".pdf", ".txt", ".png", ".jpg", ".jpeg"]);
 
 function pythonExecutable() {
   if (process.env.DODOC_PYTHON) return process.env.DODOC_PYTHON;
@@ -99,6 +100,30 @@ function distIndexPath() {
   return path.join(projectRoot(), "frontend", "dist", "index.html");
 }
 
+function collectImportableFiles(baseDir, maxDepth = 3) {
+  const out = [];
+  const walk = (dir, depth) => {
+    if (depth > maxDepth) return;
+    let entries = [];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        walk(fullPath, depth + 1);
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).toLowerCase();
+        if (IMPORTABLE_EXTENSIONS.has(ext)) out.push(fullPath);
+      }
+    }
+  };
+  walk(baseDir, 0);
+  return out;
+}
+
 /**
  * Packaged app always uses the built SPA. Unpackaged: use Vite when
  * DODOC_LOAD_DIST is not set (npm run dev); otherwise or if :5173 is down,
@@ -176,6 +201,14 @@ async function createWindow() {
 }
 
 app.whenReady().then(() => {
+  ipcMain.handle("select-folder", async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ["openDirectory"],
+    });
+    if (result.canceled || result.filePaths.length === 0) return null;
+    return collectImportableFiles(result.filePaths[0], 3);
+  });
+
   void createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();

@@ -5,13 +5,22 @@ import { Spinner } from "../components/Spinner";
 import { useToast } from "../context/ToastContext";
 import type { DocumentSummary } from "../types";
 
-const ALLOWED_EXT = /\.(pdf|png|jpe?g)$/i;
+const ALLOWED_EXT = /\.(pdf|txt|png|jpe?g)$/i;
+const BATCH_ALLOWED_EXT = /\.(pdf|txt|png|jpe?g)$/i;
+const MAX_BATCH_FILES = 200;
+
+interface BatchUploadResponse {
+  queued: number;
+  skipped: number;
+  documents: DocumentSummary[];
+}
 
 function isAllowedFile(file: File) {
   if (ALLOWED_EXT.test(file.name)) return true;
   const t = file.type.toLowerCase();
   return (
     t === "application/pdf" ||
+    t === "text/plain" ||
     t === "image/png" ||
     t === "image/jpeg" ||
     t === "image/jpg"
@@ -21,17 +30,20 @@ function isAllowedFile(file: File) {
 export function UploadPage() {
   const { showToast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [lastDoc, setLastDoc] = useState<DocumentSummary | null>(null);
+  const [batchImporting, setBatchImporting] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   const uploadFile = useCallback(
     async (file: File) => {
       if (!isAllowedFile(file)) {
         showToast({
           variant: "error",
-          message: "Tipo de arquivo invalido. Use apenas PDF, PNG ou JPG.",
+          message: "Tipo de arquivo inválido. Use apenas PDF, TXT, PNG ou JPG.",
         });
         return;
       }
@@ -116,13 +128,143 @@ export function UploadPage() {
     [uploadFile],
   );
 
+  const importFolder = useCallback(async () => {
+    if (!window.electronAPI) return;
+    setLastDoc(null);
+    setBatchImporting(true);
+    setBatchProgress({ current: 0, total: 0 });
+    try {
+      const selected = await window.electronAPI.selectFolder();
+      if (!selected || selected.length === 0) {
+        showToast({ variant: "info", message: "Nenhum arquivo encontrado na pasta selecionada." });
+        return;
+      }
+      const allowed = selected.filter((p) => BATCH_ALLOWED_EXT.test(p));
+      if (allowed.length === 0) {
+        showToast({
+          variant: "error",
+          message: "A pasta não possui arquivos suportados (.pdf, .txt, .png, .jpg).",
+        });
+        return;
+      }
+      let toImport = allowed;
+      if (allowed.length > MAX_BATCH_FILES) {
+        toImport = allowed.slice(0, MAX_BATCH_FILES);
+        showToast({
+          variant: "info",
+          message: `Limite de ${MAX_BATCH_FILES} arquivos por importação. Serão importados os primeiros ${MAX_BATCH_FILES}.`,
+        });
+      }
+      setBatchProgress({ current: 0, total: toImport.length });
+      const { data } = await api.post<BatchUploadResponse>("/upload/batch", {
+        paths: toImport,
+      });
+      setBatchProgress({ current: data.queued + data.skipped, total: toImport.length });
+      for (const doc of data.documents) {
+        showToast({
+          variant: "success",
+          message: `Importado: “${doc.filename}”. Processamento em segundo plano.`,
+        });
+      }
+      if (data.skipped > 0) {
+        showToast({
+          variant: "info",
+          message: `${data.skipped} arquivo(s) foram ignorados (duplicados, inválidos ou vazios).`,
+        });
+      }
+      showToast({
+        variant: "success",
+        message: `${data.queued} arquivos importados com sucesso.`,
+      });
+    } catch (e: unknown) {
+      let msg = "Falha ao importar pasta.";
+      if (axios.isAxiosError(e)) {
+        const d = e.response?.data as { detail?: string } | undefined;
+        if (d?.detail) msg = String(d.detail);
+      }
+      showToast({ variant: "error", message: msg });
+    } finally {
+      setBatchImporting(false);
+    }
+  }, [showToast]);
+
+  const importFolderFromBrowser = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) {
+        showToast({ variant: "info", message: "Nenhum arquivo encontrado na pasta selecionada." });
+        return;
+      }
+      const all = Array.from(files);
+      const allowed = all.filter((f) => BATCH_ALLOWED_EXT.test(f.name));
+      if (allowed.length === 0) {
+        showToast({
+          variant: "error",
+          message: "A pasta não possui arquivos suportados (.pdf, .txt, .png, .jpg).",
+        });
+        return;
+      }
+
+      let toImport = allowed;
+      if (allowed.length > MAX_BATCH_FILES) {
+        toImport = allowed.slice(0, MAX_BATCH_FILES);
+        showToast({
+          variant: "info",
+          message: `Limite de ${MAX_BATCH_FILES} arquivos por importação. Serão importados os primeiros ${MAX_BATCH_FILES}.`,
+        });
+      }
+
+      setBatchImporting(true);
+      setBatchProgress({ current: 0, total: toImport.length });
+      let queued = 0;
+      let skipped = 0;
+      try {
+        for (let i = 0; i < toImport.length; i += 1) {
+          const file = toImport[i];
+          setBatchProgress({ current: i, total: toImport.length });
+          try {
+            const form = new FormData();
+            form.append("file", file);
+            const { data } = await api.post<DocumentSummary>("/upload", form, {
+              headers: { "Content-Type": "multipart/form-data" },
+            });
+            queued += 1;
+            showToast({
+              variant: "success",
+              message: `Importado: “${data.filename}”. Processamento em segundo plano.`,
+            });
+          } catch {
+            skipped += 1;
+            showToast({
+              variant: "error",
+              message: `Falha ao importar “${file.name}”.`,
+            });
+          }
+        }
+        setBatchProgress({ current: toImport.length, total: toImport.length });
+        if (skipped > 0) {
+          showToast({
+            variant: "info",
+            message: `${skipped} arquivo(s) não foram importados.`,
+          });
+        }
+        showToast({
+          variant: "success",
+          message: `${queued} arquivos importados com sucesso.`,
+        });
+      } finally {
+        setBatchImporting(false);
+      }
+    },
+    [showToast],
+  );
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="mb-10 md:mb-16">
         <p className="section-kicker">Ingestão</p>
         <h2 className="section-title">Enviar documentos</h2>
         <p className="section-desc">
-          PDF, PNG ou JPG. Os arquivos ficam nesta máquina; OCR e embeddings
+          PDF, TXT, PNG ou JPG. Os arquivos ficam nesta máquina; OCR e embeddings
           rodam localmente.
         </p>
       </header>
@@ -153,7 +295,7 @@ export function UploadPage() {
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf"
+          accept=".pdf,.txt,.png,.jpg,.jpeg,text/plain,image/png,image/jpeg,application/pdf"
           className="hidden"
           disabled={uploading}
           onChange={(e) => {
@@ -177,7 +319,7 @@ export function UploadPage() {
             Arraste e solte um arquivo aqui
           </p>
           <p className="mt-2 text-sm text-dl-muted">
-            ou clique para escolher · PDF, PNG, JPG
+            ou clique para escolher · PDF, TXT, PNG, JPG
           </p>
           <button
             type="button"
@@ -191,6 +333,53 @@ export function UploadPage() {
             Escolher arquivo
           </button>
         </div>
+      </div>
+
+      <input
+        ref={folderInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          void importFolderFromBrowser(e.target.files);
+          e.target.value = "";
+        }}
+      />
+
+      <div className="card-elevated mt-6 border border-dl-border p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.2px] text-dl-muted">
+              Importação em lote
+            </p>
+            <p className="mt-1 text-sm text-dl-muted">
+              Selecione uma pasta para importar automaticamente arquivos PDF, TXT, PNG e JPG.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-glass"
+            onClick={() => {
+              if (window.electronAPI) {
+                void importFolder();
+                return;
+              }
+              if (folderInputRef.current) {
+                folderInputRef.current.setAttribute("webkitdirectory", "");
+                folderInputRef.current.setAttribute("directory", "");
+                folderInputRef.current.click();
+              }
+            }}
+            disabled={uploading || batchImporting}
+          >
+            {batchImporting ? "Importando pasta…" : "Importar pasta"}
+          </button>
+        </div>
+        {batchImporting && batchProgress.total > 0 && (
+          <p className="mt-4 text-sm text-dl-muted">
+            Importando {batchProgress.current} de {batchProgress.total} arquivos...
+          </p>
+        )}
       </div>
 
       {uploading && (
