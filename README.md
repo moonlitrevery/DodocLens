@@ -12,8 +12,6 @@
 
 <hr>
 
-<!-- Replace with actual banner/screenshot -->
-
 <p align="center">
   <img src="./docs/banner.png" alt="DodocLens banner" width="720" />
 </p>
