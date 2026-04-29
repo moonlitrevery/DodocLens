@@ -5,6 +5,7 @@ import { EmptyState } from "../components/EmptyState";
 import { Spinner } from "../components/Spinner";
 import { useToast } from "../context/ToastContext";
 import type { DocumentDetail, DocumentSummary } from "../types";
+import { formatApiDateTime } from "../utils/formatDate";
 
 function statusStyles(status: string) {
   switch (status) {
@@ -195,7 +196,7 @@ export function DocumentsPage() {
                     {d.filename}
                   </div>
                   <div className="mt-1 font-mono text-xs text-dl-code">
-                    {new Date(d.created_at).toLocaleString()}
+                    {formatApiDateTime(d.created_at)}
                   </div>
                 </div>
                 <span
