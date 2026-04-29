@@ -1,12 +1,38 @@
-# DodocLens
+<h1 align="center">DodocLens</h1>
 
-[![Português](https://img.shields.io/badge/lang-pt--BR-green)](./README.pt-BR.md)
+<p align="center"><em>Local-first document intelligence. Semantic search over your files — fully offline, fully private.</em></p>
 
-Local-first document intelligence. Semantic search over your files — fully offline, fully private.
+<p align="center">
+  <a href="./README.pt-BR.md"><img src="https://img.shields.io/badge/lang-pt--BR-green" alt="Português" /></a>
+  <img src="https://img.shields.io/badge/python-3.10--3.13-blue" alt="Python" />
+  <img src="https://img.shields.io/badge/license-GPL--3.0-orange" alt="License" />
+  <img src="https://img.shields.io/badge/status-MVP-yellowgreen" alt="Status" />
+  <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey" alt="Platform" />
+</p>
 
-![Python](https://img.shields.io/badge/python-3.10--3.13-blue) ![License](https://img.shields.io/badge/license-GPL--3.0-orange) ![Status](https://img.shields.io/badge/status-MVP-yellowgreen) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
+<hr>
 
-## Overview
+<!-- Replace with actual banner/screenshot -->
+
+<p align="center">
+  <img src="./docs/banner.png" alt="DodocLens banner" width="720" />
+</p>
+
+<br>
+
+<div align="center">
+
+**Table of Contents**
+
+✦ [Overview](#overview) ✦ [Architecture Overview](#architecture-overview) ✦ [Prerequisites](#prerequisites) ✦ [Installation](#installation) ✦ [Running the Application](#running-the-application) ✦ [Testing Each Module](#testing-each-module) ✦ [Environment Variables](#environment-variables) ✦ [Project Structure](#project-structure) ✦ [Known Issues & Limitations](#known-issues--limitations) ✦ [Contributors](#contributors) ✦ [License](#license)
+
+</div>
+
+<br>
+
+<hr>
+
+## 🔍 Overview
 
 DodocLens is a desktop-friendly document assistant that runs entirely on your machine. You upload PDFs, images (PNG/JPG), and plain text files (`.txt`); the app extracts readable text (including OCR when needed), splits content into chunks, and builds semantic embeddings so you can search by **meaning**, not just exact keywords.
 
@@ -14,7 +40,9 @@ Text extraction uses **PyMuPDF** for PDFs with a text layer and **Tesseract** (v
 
 The stack targets **legal professionals**, **clinicians**, and **researchers** who need confidential search over their own libraries without sending data to third parties.
 
-## Architecture overview
+<hr>
+
+## 🏗️ Architecture Overview
 
 | Layer | Technology | Role |
 |-------|-------------|------|
@@ -39,7 +67,9 @@ flowchart LR
   CS --> R[Results]
 ```
 
-## Prerequisites
+<hr>
+
+## 📋 Prerequisites
 
 Install these **before** running the app. **Python itself** should be managed with **uv** (do not rely on a manually curated global Python for this project).
 
@@ -99,9 +129,12 @@ Required for image OCR and for PDFs that need raster OCR. Install **English** an
 
   Install from [UB Mannheim builds](https://github.com/UB-Mannheim/tesseract/wiki) and add `tesseract.exe` to **PATH** (see also comments in `backend/services/text_extraction.py`).
 
-**Note:** After `uv sync`, run **`uv python pin 3.13`** (or another supported 3.10–3.13 version) inside `backend/` so the project uses a consistent interpreter.
+> [!NOTE]
+> After `uv sync`, run **`uv python pin 3.13`** (or another supported 3.10–3.13 version) inside `backend/` so the project uses a consistent interpreter.
 
-## Installation
+<hr>
+
+## ⚙️ Installation
 
 1. **Clone the repository**
 
@@ -130,7 +163,6 @@ Required for image OCR and for PDFs that need raster OCR. Install **English** an
 4. **Pin the Python version** for the backend workspace
 
    ```bash
-   cd backend
    uv python pin 3.13
    ```
 
@@ -147,9 +179,12 @@ Required for image OCR and for PDFs that need raster OCR. Install **English** an
    npm install --prefix frontend
    ```
 
-**First model download:** On the first embedding run, **sentence-transformers** downloads **`paraphrase-multilingual-MiniLM-L12-v2`** (~**120 MB**). You need internet **once**; afterwards the model stays in the Hugging Face cache (see `HF_HOME` if you want a custom location).
+> [!TIP]
+> On the first embedding run, **sentence-transformers** downloads **`paraphrase-multilingual-MiniLM-L12-v2`** (~**120 MB**). You need internet **once**; afterwards the model stays in the Hugging Face cache (see `HF_HOME` if you want a custom location). For the web UI, you can copy `frontend/.env.example` to `frontend/.env` and set **`VITE_API_URL`** if the API is not on the default host.
 
-## Running the application
+<hr>
+
+## 🚀 Running the Application
 
 ### Backend only
 
@@ -202,9 +237,11 @@ npm run electron:prod
 
 This runs **`npm run build --prefix frontend`** (producing `frontend/dist/`) and then starts Electron, which loads the built SPA instead of the Vite dev server.
 
-## Testing each module
+<hr>
 
-#### 7.1 Backend API (FastAPI health check)
+## 🧪 Testing Each Module
+
+### Backend API (FastAPI health check)
 
 ```bash
 curl http://127.0.0.1:8000/health
@@ -216,7 +253,7 @@ curl http://127.0.0.1:8000/health
 {"status":"ok"}
 ```
 
-#### 7.2 Text extraction
+### Text extraction
 
 From the **`backend/`** directory, with a real file path:
 
@@ -232,7 +269,7 @@ print(text[:500])
 
 **Expected:** Up to 500 characters of extracted text printed to stdout (may be empty for blank PDFs).
 
-#### 7.3 Embedding model
+### Embedding model
 
 ```bash
 cd backend
@@ -245,7 +282,7 @@ print(vecs.shape)
 
 **Expected:** `(1, 384)` — one row, 384-dimensional vector for this model configuration.
 
-#### 7.4 Semantic search (via API)
+### Semantic search (via API)
 
 ```bash
 curl -X POST http://127.0.0.1:8000/search \
@@ -255,13 +292,13 @@ curl -X POST http://127.0.0.1:8000/search \
 
 **Expected:** JSON with a `results` array (possibly empty until documents are indexed and `ready`).
 
-#### 7.5 Batch folder import (Electron)
+### Batch folder import (Electron)
 
 Folder import uses native directory selection and (in Electron) can batch paths to **`POST /upload/batch`**. Run the **full Electron app** (`npm run dev` with backend running), open the **Upload** page, and click **Importar pasta**. After choosing a folder, supported files are queued for processing.
 
 **Expected:** Toasts per imported file and a summary; new rows appear under **Documents** as processing completes.
 
-#### 7.6 OCR test (image)
+### OCR test (image)
 
 From **`backend/`**, pointing at a PNG on disk:
 
@@ -277,7 +314,9 @@ print(text[:500])
 
 **Expected:** OCR text (quality depends on image resolution and Tesseract language data).
 
-## Environment variables
+<hr>
+
+## 🌐 Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -286,7 +325,12 @@ print(text[:500])
 | `DODOC_LOAD_DIST` | unset | If set to `1`, Electron prefers loading **`frontend/dist`** instead of the Vite dev server (useful with `npm run electron:prod` patterns). |
 | `HF_HOME` | platform default | Optional override for Hugging Face / sentence-transformers model cache location. |
 
-## Project structure
+<hr>
+
+## 📁 Project Structure
+
+<details>
+<summary>📂 Click to expand full project structure</summary>
 
 ```text
 DodocLens/
@@ -347,27 +391,75 @@ DodocLens/
         └── utils/                  # Highlighting, date formatting, etc.
 ```
 
+</details>
+
 Runtime directories such as **`backend/data/`** (SQLite DB, uploads) are created when you run the app; they may be absent in a fresh clone.
 
-## Known issues & limitations
+<hr>
 
-- **Python 3.14+** may break native wheels (e.g. **pydantic-core** / PyO3). Use **Python 3.10–3.13** as pinned with `uv python pin`.
-- **First run** downloads the **~120 MB** embedding model; internet is required **once** unless the cache is pre-populated.
+## ⚠️ Known Issues & Limitations
+
+> [!WARNING]
+> **Python 3.14+** may break native wheels (e.g. **pydantic-core** / PyO3). Use **Python 3.10–3.13** as pinned with `uv python pin`.
+
+> [!TIP]
+> **First run** downloads the **~120 MB** embedding model; internet is required **once** unless the cache is pre-populated.
+
 - **Search MVP:** all chunk embeddings are loaded from SQLite into RAM for each query — acceptable for small libraries, not for huge corpora.
-- **Tesseract** is a separate system binary; it must be installed and on `PATH` (or configured for pytesseract on Windows).
-- **Browser dev mode:** folder import uploads files **one at a time** via **`POST /upload`**; it does **not** use **`POST /upload/batch`** (that path is intended for absolute paths from Electron).
 
-## Contributors
+> [!WARNING]
+> **Tesseract** is a separate system binary; it must be installed and on `PATH` (or configured for pytesseract on Windows).
+
+> [!NOTE]
+> **Browser dev mode:** folder import uploads files **one at a time** via **`POST /upload`**; it does **not** use **`POST /upload/batch`** (that path is intended for absolute paths from Electron).
+
+<hr>
+
+## 👥 Contributors
 
 Students who participated in the project:
 
-- João Vitor Bruschi  
-- Nícolas Justo  
-- Jean Victor Yoshida  
-- João Pedro Penna  
+<table align="center">
+  <tr>
+    <td align="center">
+      <a href="https://github.com/moonlitrevery">
+        <img src="https://github.com/moonlitrevery.png" width="80" style="border-radius:50%" alt="João Vitor Bruschi" /><br />
+        <sub><b>João Vitor Bruschi</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/elysiumrev">
+        <img src="https://github.com/elysiumrev.png" width="80" style="border-radius:50%" alt="Nícolas Justo" /><br />
+        <sub><b>Nícolas Justo</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Eulrnlieder">
+        <img src="https://github.com/Eulrnlieder.png" width="80" style="border-radius:50%" alt="Jean Victor Yoshida" /><br />
+        <sub><b>Jean Victor Yoshida</b></sub>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Darkzz1n">
+        <img src="https://github.com/Darkzz1n.png" width="80" style="border-radius:50%" alt="João Pedro Penna" /><br />
+        <sub><b>João Pedro Penna</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
 
-Repository: [github.com/moonlitrevery/DodocLens](https://github.com/moonlitrevery/DodocLens)
+<p align="center">
+  <strong>Repository:</strong> <a href="https://github.com/moonlitrevery/DodocLens">github.com/moonlitrevery/DodocLens</a>
+</p>
 
-## License
+<hr>
+
+## 📄 License
 
 This project is licensed under the **GNU General Public License v3.0** — see the [`LICENSE`](./LICENSE) file for the full text.
+
+<br>
+
+<p align="center">
+  <sub>Your documents stay on your machine. Smart search, offline. 💻 · GPL-3.0 · local-first</sub>
+</p>
