@@ -1,246 +1,373 @@
 # DodocLens
 
-**DodocLens** is a local-first desktop MVP for **document intelligence**: upload PDFs and images, extract text (including OCR when needed), split content into chunks, compute **semantic embeddings** entirely on-device, and search by **meaning** — not just keywords. No OpenAI, no paid cloud APIs; suitable for sensitive professions.
+[![Português](https://img.shields.io/badge/lang-pt--BR-green)](./README.pt-BR.md)
 
-**Target users:** legal teams, clinicians, researchers, and anyone who needs **privacy-preserving** search over their own files.
+Local-first document intelligence. Semantic search over your files — fully offline, fully private.
 
----
+![Python](https://img.shields.io/badge/python-3.10--3.13-blue) ![License](https://img.shields.io/badge/license-GPL--3.0-orange) ![Status](https://img.shields.io/badge/status-MVP-yellowgreen) ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey)
 
-## Table of contents
+## Overview
 
-1. [Project overview](#project-overview)
-2. [Architecture](#architecture)
-3. [AI & retrieval (how it works)](#ai--retrieval-how-it-works)
-4. [Processing pipeline](#processing-pipeline)
-5. [Technical decisions](#technical-decisions)
-6. [How to run](#how-to-run)
-7. [Packaging & installers](#packaging--installers)
-8. [API reference](#api-reference)
+DodocLens is a desktop-friendly document assistant that runs entirely on your machine. You upload PDFs, images (PNG/JPG), and plain text files (`.txt`); the app extracts readable text (including OCR when needed), splits content into chunks, and builds semantic embeddings so you can search by **meaning**, not just exact keywords.
 
----
+Text extraction uses **PyMuPDF** for PDFs with a text layer and **Tesseract** (via **pytesseract** and **Pillow**) when pages are effectively scanned or when the input is an image. Chunk embeddings use **sentence-transformers** with **`paraphrase-multilingual-MiniLM-L12-v2`** — a compact multilingual model suited for Portuguese and English clinical or legal prose. Search ranks chunks with **cosine similarity** (**scikit-learn** `cosine_similarity` plus **NumPy** arrays in the MVP pipeline). No cloud inference APIs are required: after a one-time model download, your documents and queries stay on your device.
 
-## Project overview
+The stack targets **legal professionals**, **clinicians**, and **researchers** who need confidential search over their own libraries without sending data to third parties.
 
-- **Upload** PDF, PNG, or JPG files; they are stored under `backend/data/uploads/`.
-- **Extract** text: native PDF text when available; otherwise **Tesseract OCR** (images and “scanned” PDFs).
-- **Chunk** normalized text into overlapping segments (~400 words) for manageable embedding size and better recall.
-- **Embed** each chunk with **sentence-transformers** (`all-MiniLM-L6-v2`) and persist vectors (as JSON) in **SQLite**.
-- **Search** with a natural-language query: the query is embedded the same way, and the app ranks chunks by **cosine similarity**, returning the **top 5** hits.
+## Architecture overview
 
-The **Electron** shell starts (or attaches to) the **FastAPI** backend and serves the **React** UI (Vite in development, static `dist` in production).
-
----
-
-## Architecture
-
-| Layer | Role |
-|--------|------|
-| **Electron** (`electron/main.cjs`) | Opens the window, optionally spawns `backend/main.py`, waits for `GET /health`, loads the UI (dev server or `frontend/dist`). |
-| **React + Vite** (`frontend/`) | SPA: upload, document list, semantic search; talks to the API over HTTP (Axios). |
-| **FastAPI** (`backend/`) | REST API, background processing, SQLite access, embedding + search orchestration. |
-| **SQLite** | `documents` and `chunks` tables; file metadata, chunk text, and serialized embedding vectors. |
-| **Local AI** | **sentence-transformers** + **PyTorch** for embeddings; **scikit-learn** for cosine similarity. |
-| **OCR / PDF** | **PyMuPDF** for PDFs; **pytesseract** for OCR when text density is low or input is an image. |
-
-High-level flow:
+| Layer | Technology | Role |
+|-------|-------------|------|
+| Desktop shell | Electron | Hosts the UI, optional backend spawn, file-system access (e.g. folder picker). |
+| UI | React + Vite + TypeScript + Tailwind | SPA: upload, document library, semantic search; HTTP client to the local API. |
+| API | FastAPI + Uvicorn | REST endpoints, background processing hooks, CORS for local dev. |
+| Persistence | SQLite + SQLAlchemy | Stores documents, chunk text, and serialized embedding vectors. |
+| Embeddings | sentence-transformers + PyTorch | Loads the multilingual MiniLM model; encodes chunks and queries. |
+| Retrieval | scikit-learn (`cosine_similarity`) + NumPy | Compares query vector to stored chunk vectors for top results. |
+| PDF / images | PyMuPDF, pytesseract + Pillow | PDF text layer vs. rasterized OCR paths; image OCR. |
 
 ```mermaid
 flowchart LR
-  subgraph desktop [Electron]
-    UI[React UI]
-  end
-  subgraph api [FastAPI localhost:8000]
-    Routes[routes]
-    Svc[services]
-    DB[(SQLite)]
-  end
-  UI -->|HTTP| Routes
-  Routes --> Svc
-  Svc --> DB
-  Svc --> LM[sentence-transformers]
+  U[Upload] --> E[Text Extraction]
+  E --> N[Normalization]
+  N --> C[Chunking]
+  C --> M[Embedding]
+  M --> DB[(SQLite)]
+  Q[Search Query] --> MQ[Embedding]
+  DB --> CS[Cosine Similarity]
+  MQ --> CS
+  CS --> R[Results]
 ```
 
----
+## Prerequisites
 
-## AI & retrieval (how it works)
+Install these **before** running the app. **Python itself** should be managed with **uv** (do not rely on a manually curated global Python for this project).
 
-### What are embeddings?
+### Python 3.10–3.13 (via uv)
 
-An **embedding** is a fixed-length vector of numbers that represents the **semantic content** of a piece of text. Similar ideas (even with different wording) tend to land **close together** in this vector space. We use a **sentence-level** model (`all-MiniLM-L6-v2`) so each **chunk** of your document becomes one vector (~384 dimensions).
+**Do not install CPython manually** from your OS package manager for this workflow. After **uv** is installed (next subsection), **`uv sync`** and **`uv python pin 3.13`** (see [Installation](#installation)) download and pin a supported **3.10–3.13** interpreter that matches `backend/pyproject.toml` and **`uv.lock`**.
 
-### How semantic search works
+### Node.js 18+
 
-1. At **index time**, every chunk gets an embedding and is stored in the database.
-2. At **query time**, your question is embedded with the **same model**.
-3. The system compares the query vector to every chunk vector and sorts by similarity.
+- **Linux (Arch / CachyOS)**
 
-### Why cosine similarity?
+  ```bash
+  sudo pacman -S nodejs npm
+  ```
 
-**Cosine similarity** measures the angle between two vectors (ignoring magnitude to a large extent). For normalized embedding vectors it behaves like a **semantic match score** in roughly **[0, 1]**: higher means “closer in meaning.” It is standard for text embeddings, simple to implement, and fast enough for MVP-scale local indexes.
+- **macOS**
 
-### Why local models?
+  ```bash
+  brew install node
+  ```
 
-- **Privacy:** text never leaves the machine.
-- **Cost:** no per-token API fees.
-- **Offline:** after the model is cached, operation does not require the internet.
+- **Windows**
 
-Trade-off: you maintain **PyTorch** + model weights locally and accept **CPU/GPU** resource use on first indexing and search.
+  Install the LTS build from [nodejs.org](https://nodejs.org/).
 
----
+### uv (Python package manager)
 
-## Processing pipeline
+- **Linux / macOS**
 
-1. **Upload** — `POST /upload` saves the file, inserts a `documents` row (`pending`), and schedules a **FastAPI `BackgroundTasks`** job.
-2. **OCR / text extraction** — PDFs with sufficient selectable text use PyMuPDF; sparse text triggers per-page rendering + Tesseract. Images always use OCR.
-3. **Normalization** — Unicode cleanup and whitespace normalization (`utils/text.py`).
-4. **Chunking** — Overlapping word windows (~400 words) to preserve context across boundaries (`services/chunking.py`).
-5. **Embedding generation** — The model encodes each chunk; vectors are serialized to JSON and stored per row in `chunks.embedding_json`.
-6. **Storage** — SQLite holds document metadata, chunk text, and embeddings.
-7. **Semantic search** — `POST /search` embeds the query, loads chunk vectors, computes cosine similarity, returns **top 5** with scores and text (including **full chunk** text for the UI modal).
+  ```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  ```
 
----
+- **Windows (PowerShell)**
 
-## Technical decisions
+  ```powershell
+  powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+  ```
 
-| Decision | Rationale |
-|-----------|-----------|
-| **SQLite** | Zero server setup, single-file DB, ideal for a **desktop MVP** and offline use. PostgreSQL would add deployment and ops overhead without MVP benefit. |
-| **No external AI APIs** | Aligns with **privacy**, **offline**, and **zero recurring cost** goals; mandatory for many legal/medical scenarios. |
-| **Embeddings in SQLite as JSON** | Keeps the stack simple; acceptable for thousands of chunks. At larger scale, consider a vector DB or binary storage. |
-| **Electron + spawned Python** | Reuses a mature web UI while keeping ML in Python. Packaged installers still need a clear story for **bundled or system Python** (see packaging). |
-| **uv** (`backend/pyproject.toml`, `uv.lock`) | Fast, reproducible Python environments; `uv sync` creates `.venv` and installs the locked dependency tree. |
+### Tesseract OCR
 
-**Trade-offs:** very large libraries will be slower to index on CPU; global search loads all chunk vectors into memory for similarity — fine for MVP, revisit for scale.
+Required for image OCR and for PDFs that need raster OCR. Install **English** and **Portuguese** language packs where available.
 
----
+- **Linux (Arch / CachyOS)**
 
-## How to run
+  ```bash
+  sudo pacman -S tesseract tesseract-data-eng tesseract-data-por
+  ```
 
-### Prerequisites
+- **macOS**
 
-- **[uv](https://docs.astral.sh/uv/getting-started/installation/)** (installs and manages Python **3.10+** per `backend/pyproject.toml`)
-- **Node.js 18+** and **npm**
-- **Tesseract** on `PATH` (required whenever OCR runs: images and low-text PDFs)
+  ```bash
+  brew install tesseract tesseract-lang
+  ```
 
-#### Tesseract on Windows
+- **Windows**
 
-1. Download an installer from the [UB Mannheim builds](https://github.com/UB-Mannheim/tesseract/wiki) or [Tesseract releases](https://github.com/tesseract-ocr/tesseract).
-2. Install and add the folder (e.g. `C:\Program Files\Tesseract-OCR`) to **PATH**.
-3. If Python still cannot find it, set `pytesseract.pytesseract.tesseract_cmd` (see comments in `backend/services/text_extraction.py`).
+  Install from [UB Mannheim builds](https://github.com/UB-Mannheim/tesseract/wiki) and add `tesseract.exe` to **PATH** (see also comments in `backend/services/text_extraction.py`).
 
-**macOS:** `brew install tesseract`  
-**Arch Linux:** `sudo pacman -S tesseract tesseract-data-eng`  
-**Debian/Ubuntu:** `sudo apt install tesseract-ocr`
+**Note:** After `uv sync`, run **`uv python pin 3.13`** (or another supported 3.10–3.13 version) inside `backend/` so the project uses a consistent interpreter.
 
-### Backend (FastAPI)
+## Installation
 
-Dependencies live in **`backend/pyproject.toml`**; the lockfile is **`backend/uv.lock`**.
+1. **Clone the repository**
 
-From the **backend** directory:
+   ```bash
+   git clone https://github.com/moonlitrevery/DodocLens.git
+   cd DodocLens
+   ```
+
+2. **Install uv** (if it is not already installed)
+
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+   On Windows, use the PowerShell one-liner from the prerequisites table.
+
+3. **Install Python dependencies** (creates `backend/.venv` and installs from the lockfile)
+
+   ```bash
+   cd backend
+   uv sync
+   ```
+
+   This reads `pyproject.toml` and `uv.lock`, resolves dependencies, and installs them into an isolated virtual environment.
+
+4. **Pin the Python version** for the backend workspace
+
+   ```bash
+   cd backend
+   uv python pin 3.13
+   ```
+
+5. **Install root npm dependencies** (Electron tooling, `concurrently`, etc.)
+
+   ```bash
+   cd ..   # repository root
+   npm install
+   ```
+
+6. **Install frontend dependencies**
+
+   ```bash
+   npm install --prefix frontend
+   ```
+
+**First model download:** On the first embedding run, **sentence-transformers** downloads **`paraphrase-multilingual-MiniLM-L12-v2`** (~**120 MB**). You need internet **once**; afterwards the model stays in the Hugging Face cache (see `HF_HOME` if you want a custom location).
+
+## Running the application
+
+### Backend only
 
 ```bash
 cd backend
-uv sync
 uv run python main.py
 ```
 
-This creates or updates **`backend/.venv`**, installs the locked runtime dependencies, and serves the API at **http://127.0.0.1:8000**.
+The API listens at **http://127.0.0.1:8000**.
 
-- **Optional dev tools** (pytest, httpx, etc.): `uv sync --all-groups` or `uv sync --group dev`.
-- **First run:** sentence-transformers may download the embedding model into the Hugging Face cache (~90 MB). Ensure you are online once, or point `HF_HOME` / cache env vars at an existing cache.
-
-Equivalent one-liner without activating a shell:
-
-```bash
-cd backend && uv sync && uv run python main.py
-```
-
-### Frontend (browser only)
-
-With the backend already running:
+### Frontend only (browser; backend must be running)
 
 ```bash
 cd frontend
-npm install
 npm run dev
 ```
 
-Vite serves the UI (default **http://127.0.0.1:5173**). If the API is not at `http://127.0.0.1:8000`, set **`VITE_API_URL`** (no trailing slash) before `npm run dev`.
+The UI is served at **http://127.0.0.1:5173** (default Vite port).
 
-### Full desktop (Electron + Vite + backend)
+### Full desktop app (Electron)
 
-From the **repository root**:
-
-1. Install Python dependencies and root + frontend npm packages.
-2. Start the dev script (Vite + Electron).
+**Terminal 1 — backend**
 
 ```bash
-cd backend && uv sync && cd ..
-npm install
-npm install --prefix frontend
-npm run dev
+cd backend
+uv run python main.py
 ```
 
-**What happens:** `npm run dev` runs the Vite dev server and then Electron. Electron checks **http://127.0.0.1:8000/health**; if the API is down, it spawns **`python3 backend/main.py`** (or **`python`** on Windows). That only works if a working interpreter and packages exist—**prefer running the API yourself** with `uv` and pointing Electron at that interpreter.
-
-**Point Electron at the uv-managed interpreter** (recommended):
+**Terminal 2 — Electron** (from the **repository root**)
 
 ```bash
 export DODOC_PYTHON="$(pwd)/backend/.venv/bin/python"
 npm run dev
 ```
 
-Windows PowerShell:
+On **Windows (PowerShell)**, from the repo root:
 
 ```powershell
-$env:DODOC_PYTHON = "C:\path\to\DodocLens\backend\.venv\Scripts\python.exe"
+$env:DODOC_PYTHON = "$PWD\backend\.venv\Scripts\python.exe"
 npm run dev
 ```
 
-After `uv sync`, `.venv` lives under **`backend/.venv`**.
+**Why `DODOC_PYTHON`:** Electron can spawn the FastAPI process using a system `python3` that does **not** have your project dependencies. Setting `DODOC_PYTHON` to the **`uv`-managed interpreter** inside `backend/.venv` ensures the backend starts with the correct packages (FastAPI, sentence-transformers, etc.).
 
-### Production-style run (built SPA, no Vite dev server)
-
-From the **repository root**, install dependencies, then start Electron (the **`electron:prod`** script builds the frontend and loads `frontend/dist`):
+### Production build
 
 ```bash
-cd backend && uv sync && cd ..
-npm install
-npm install --prefix frontend
 npm run electron:prod
 ```
 
-Set **`DODOC_PYTHON`** the same way as in full desktop dev if Electron should spawn the backend with your uv-managed interpreter.
+This runs **`npm run build --prefix frontend`** (producing `frontend/dist/`) and then starts Electron, which loads the built SPA instead of the Vite dev server.
 
----
+## Testing each module
 
-## Packaging & installers
+#### 7.1 Backend API (FastAPI health check)
 
-`electron-builder` is configured in the root `package.json` (`build` field): **asar** with **`backend/**` unpacked** so Python can read source files from disk when packaged.
+```bash
+curl http://127.0.0.1:8000/health
+```
 
-| Script | Purpose |
-|--------|---------|
-| `npm run build:fe` | Production build of the React app → `frontend/dist`. |
-| `npm run pack` | Build frontend + unpackaged app dir (quick test). |
-| `npm run dist` / `npm run build:installer` | Build installer artifacts under `release/` (e.g. AppImage/deb, NSIS, DMG). |
-| `npm run build:desktop` | Same as full builder with `--publish never`. |
+**Expected output:**
 
-**Before shipping:** plan for **Python runtime** (system install vs embedded), **Tesseract** distribution, and **offline model cache**. The current setup is **structure-ready**, not a turnkey binary distribution.
+```json
+{"status":"ok"}
+```
 
----
+#### 7.2 Text extraction
 
-## API reference
+From the **`backend/`** directory, with a real file path:
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Liveness; used by Electron startup. |
-| POST | `/upload` | Multipart file upload. |
-| GET | `/documents` | List documents. |
-| GET | `/documents/{id}` | Document detail + text preview. |
-| POST | `/search` | Body: `{ "query": "..." }` — semantic search (top 5, includes `full_text` per hit). |
+```bash
+cd backend
+uv run python -c "
+from pathlib import Path
+from services.text_extraction import extract_text
+text = extract_text(Path('path/to/your.pdf'), 'application/pdf')
+print(text[:500])
+"
+```
 
----
+**Expected:** Up to 500 characters of extracted text printed to stdout (may be empty for blank PDFs).
+
+#### 7.3 Embedding model
+
+```bash
+cd backend
+uv run python -c "
+from services.embeddings import embed_texts
+vecs = embed_texts(['embedding test'])
+print(vecs.shape)
+"
+```
+
+**Expected:** `(1, 384)` — one row, 384-dimensional vector for this model configuration.
+
+#### 7.4 Semantic search (via API)
+
+```bash
+curl -X POST http://127.0.0.1:8000/search \
+  -H "Content-Type: application/json" \
+  -d '{"query": "your question here"}'
+```
+
+**Expected:** JSON with a `results` array (possibly empty until documents are indexed and `ready`).
+
+#### 7.5 Batch folder import (Electron)
+
+Folder import uses native directory selection and (in Electron) can batch paths to **`POST /upload/batch`**. Run the **full Electron app** (`npm run dev` with backend running), open the **Upload** page, and click **Importar pasta**. After choosing a folder, supported files are queued for processing.
+
+**Expected:** Toasts per imported file and a summary; new rows appear under **Documents** as processing completes.
+
+#### 7.6 OCR test (image)
+
+From **`backend/`**, pointing at a PNG on disk:
+
+```bash
+cd backend
+uv run python -c "
+from pathlib import Path
+from services.text_extraction import extract_text
+text = extract_text(Path('path/to/your.png'), 'image/png')
+print(text[:500])
+"
+```
+
+**Expected:** OCR text (quality depends on image resolution and Tesseract language data).
+
+## Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DODOC_PYTHON` | Auto-detected (`backend/.venv` when present) | Absolute path to the Python executable Electron uses to spawn `backend/main.py`. |
+| `VITE_API_URL` | `http://127.0.0.1:8000` | Base URL for the frontend Axios client (set before `npm run dev` in `frontend/`). |
+| `DODOC_LOAD_DIST` | unset | If set to `1`, Electron prefers loading **`frontend/dist`** instead of the Vite dev server (useful with `npm run electron:prod` patterns). |
+| `HF_HOME` | platform default | Optional override for Hugging Face / sentence-transformers model cache location. |
+
+## Project structure
+
+```text
+DodocLens/
+├── LICENSE                         # GPL-3.0 license text
+├── README.md                       # This file (English)
+├── README.pt-BR.md                 # Brazilian Portuguese README
+├── package.json                    # Root scripts: Electron, dev, production
+├── electron/
+│   ├── main.cjs                    # Electron main: window, backend spawn, IPC
+│   └── preload.cjs                 # contextBridge: platform, folder picker API
+├── backend/
+│   ├── pyproject.toml              # Python dependencies (uv)
+│   ├── uv.lock                     # Locked dependency versions
+│   ├── main.py                     # FastAPI app entry + lifespan / CORS
+│   ├── database/
+│   │   ├── __init__.py
+│   │   └── connection.py           # SQLAlchemy engine + session helpers
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── orm.py                  # Document / Chunk ORM models
+│   │   └── schemas.py              # Pydantic request/response models
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── upload.py               # POST /upload
+│   │   ├── batch.py                # POST /upload/batch (local paths)
+│   │   ├── documents.py            # GET /documents, GET /documents/{id}
+│   │   └── search.py               # POST /search
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── text_extraction.py      # PyMuPDF + Tesseract OCR paths
+│   │   ├── file_storage.py         # Saves uploads under backend/data/uploads
+│   │   ├── processing.py           # Background pipeline: extract → embed → SQLite
+│   │   ├── chunking.py             # Word-window chunking
+│   │   ├── embeddings.py           # sentence-transformers singleton
+│   │   └── search_service.py       # Semantic search over stored vectors
+│   └── utils/
+│       ├── __init__.py
+│       └── text.py                 # Text normalization helpers
+└── frontend/
+    ├── index.html                  # Vite HTML shell
+    ├── package.json                # React, Vite, Tailwind deps
+    ├── vite.config.ts              # Vite configuration
+    ├── tsconfig.json
+    ├── tailwind.config.js
+    ├── postcss.config.js
+    └── src/
+        ├── main.tsx                # React root
+        ├── App.tsx                 # Router + layout
+        ├── global.d.ts             # Window typings (e.g. electronAPI)
+        ├── vite-env.d.ts
+        ├── index.css               # Global styles / Tailwind layers
+        ├── types.ts                # Shared TS interfaces
+        ├── api/
+        │   └── client.ts           # Axios instance + base URL
+        ├── context/                # Toast, theme providers
+        ├── components/             # Layout, sidebar, modals, UI widgets
+        ├── pages/                  # Upload, Documents, Search
+        └── utils/                  # Highlighting, date formatting, etc.
+```
+
+Runtime directories such as **`backend/data/`** (SQLite DB, uploads) are created when you run the app; they may be absent in a fresh clone.
+
+## Known issues & limitations
+
+- **Python 3.14+** may break native wheels (e.g. **pydantic-core** / PyO3). Use **Python 3.10–3.13** as pinned with `uv python pin`.
+- **First run** downloads the **~120 MB** embedding model; internet is required **once** unless the cache is pre-populated.
+- **Search MVP:** all chunk embeddings are loaded from SQLite into RAM for each query — acceptable for small libraries, not for huge corpora.
+- **Tesseract** is a separate system binary; it must be installed and on `PATH` (or configured for pytesseract on Windows).
+- **Browser dev mode:** folder import uploads files **one at a time** via **`POST /upload`**; it does **not** use **`POST /upload/batch`** (that path is intended for absolute paths from Electron).
+
+## Contributors
+
+Students who participated in the project:
+
+- João Vitor Bruschi  
+- Nícolas Justo  
+- Jean Victor Yoshida  
+- João Pedro Penna  
+
+Repository: [github.com/moonlitrevery/DodocLens](https://github.com/moonlitrevery/DodocLens)
 
 ## License
 
-See the `LICENSE` file in this repository.
+This project is licensed under the **GNU General Public License v3.0** — see the [`LICENSE`](./LICENSE) file for the full text.
