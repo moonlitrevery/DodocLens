@@ -9,6 +9,9 @@ export const api = axios.create({
   timeout: 120_000,
 });
 
+export const deleteDocument = (id: number): Promise<void> =>
+  api.delete(`/documents/${id}`).then(() => undefined);
+
 export function getHealthUrl(): string {
   return `${baseURL}/health`;
 }
