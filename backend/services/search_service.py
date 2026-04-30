@@ -1,23 +1,22 @@
-"""Semantic search via cosine similarity."""
+"""Semantic search via ChromaDB vector similarity."""
 
 from __future__ import annotations
 
 import logging
 
-import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
 from sqlalchemy import tuple_
 from sqlalchemy.orm import Session
 
 from models.orm import Chunk, Document
 from models.schemas import SearchResultItem
-from services.embeddings import embed_query, json_to_embedding
+from services.chroma_client import get_chroma_collection
+from services.embeddings import embed_texts
 
 logger = logging.getLogger(__name__)
 
 TOP_K = 5
-# Cosine similarity in [-1, 1]. Short / keyword queries often sit below a strict
-# cutoff with MiniLM; without a fallback the UI shows “no results” while the index is fine.
+# Short / keyword queries often sit below a strict cutoff with MiniLM; without a fallback
+# the UI shows “no results” while the index is fine.
 MIN_SCORE = 0.28
 
 
@@ -51,41 +50,60 @@ def _load_chunks_by_doc_index(
 
 
 def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
-    q = embed_query(query).reshape(1, -1)
-    rows = db.query(Chunk, Document).join(Document).all()
-    if not rows:
+    collection = get_chroma_collection()
+    query_vec = embed_texts([query])[0].tolist()
+
+    raw = collection.query(
+        query_embeddings=[query_vec],
+        n_results=10,
+        include=["distances", "metadatas"],
+    )
+
+    ids_batch = raw.get("ids") or []
+    dist_batch = raw.get("distances") or []
+    if not ids_batch or not ids_batch[0]:
         return []
 
-    matrices: list[np.ndarray] = []
-    meta: list[tuple[Chunk, Document]] = []
-    for chunk, doc in rows:
-        try:
-            v = json_to_embedding(chunk.embedding_json).reshape(1, -1)
-        except Exception as e:
-            logger.warning("Skip chunk %s: %s", chunk.id, e)
+    ids_str: list[str] = list(ids_batch[0])
+    distances: list[float | None] = list(dist_batch[0]) if dist_batch else []
+
+    ranked: list[tuple[int, float]] = []
+    for i, sid in enumerate(ids_str):
+        dist = distances[i] if i < len(distances) else None
+        if dist is None:
             continue
-        matrices.append(v)
-        meta.append((chunk, doc))
+        try:
+            similarity = 1.0 - (float(dist) / 2.0)
+        except (TypeError, ValueError):
+            continue
+        try:
+            cid = int(sid)
+        except ValueError:
+            continue
+        ranked.append((cid, similarity))
 
-    if not matrices:
+    if not ranked:
         return []
 
-    X = np.vstack(matrices)
-    sims = cosine_similarity(q, X)[0]
-    order = np.argsort(-sims)
-
-    filtered = [int(idx) for idx in order if sims[idx] >= MIN_SCORE][:TOP_K]
+    filtered = [(cid, s) for cid, s in ranked if s >= MIN_SCORE][:TOP_K]
     if not filtered:
-        filtered = [int(i) for i in order[:TOP_K]]
+        filtered = ranked[:TOP_K]
         logger.info(
             "Search: no chunks above similarity %.2f; returning top-%s by score anyway",
             MIN_SCORE,
             TOP_K,
         )
 
+    chunk_ids = [cid for cid, _s in filtered]
+    chunks = db.query(Chunk).filter(Chunk.id.in_(chunk_ids)).all()
+    chunk_by_id = {c.id: c for c in chunks}
+    scores = {cid: s for cid, s in filtered}
+
     neighbor_pairs: set[tuple[int, int]] = set()
-    for idx in filtered:
-        ch, _doc = meta[int(idx)]
+    for cid, _s in filtered:
+        ch = chunk_by_id.get(cid)
+        if not ch:
+            continue
         neighbor_pairs.add((ch.document_id, ch.chunk_index))
         if ch.chunk_index > 0:
             neighbor_pairs.add((ch.document_id, ch.chunk_index - 1))
@@ -93,19 +111,24 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
     chunk_by_key = _load_chunks_by_doc_index(db, neighbor_pairs)
 
     results: list[SearchResultItem] = []
-    for idx in filtered:
-        score = float((sims[idx] + 1) / 2)
-        ch, doc = meta[int(idx)]
+    for cid, score in filtered:
+        ch = chunk_by_id.get(cid)
+        if not ch:
+            continue
+        doc = db.get(Document, ch.document_id)
+        if not doc:
+            continue
+
         context_text = ch.text
         prev_chunk = chunk_by_key.get((ch.document_id, ch.chunk_index - 1))
         next_chunk = chunk_by_key.get((ch.document_id, ch.chunk_index + 1))
         if prev_chunk:
             context_text = prev_chunk.text + "\n\n" + context_text
-
         if next_chunk:
             context_text = context_text + "\n\n" + next_chunk.text
 
         snippet = search_snippet_plain(context_text, query)
+        sim_score = float(scores.get(cid, score))
 
         results.append(
             SearchResultItem(
@@ -115,7 +138,7 @@ def semantic_search(db: Session, query: str) -> list[SearchResultItem]:
                 chunk_index=ch.chunk_index,
                 snippet=snippet,
                 full_text=context_text,
-                score=score,
+                score=sim_score,
             )
         )
     return results

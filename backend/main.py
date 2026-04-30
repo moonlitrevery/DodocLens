@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database.connection import Base, engine
 from routes import batch, documents, search, upload
+from services.chroma_client import get_chroma_collection
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +31,7 @@ logging.basicConfig(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    get_chroma_collection()
     yield
 
 
