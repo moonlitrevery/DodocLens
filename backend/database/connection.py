@@ -14,8 +14,11 @@ DATABASE_URL = f"sqlite:///{DATA_DIR / 'dodoclens.db'}"
 
 engine = create_engine(
     DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False,
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 30
+    },
+    pool_pre_ping=True
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

@@ -5,6 +5,9 @@ __pycache__/
 venv/
 backend/.venv/
 backend/data/
+backend/data/chroma/
+backend/data/dodoclens.db
+backend/data/uploads/
 
 # Node
 node_modules/

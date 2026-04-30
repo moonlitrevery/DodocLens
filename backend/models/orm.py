@@ -29,6 +29,8 @@ class Document(Base):
     )
 
 
+# NOTE: embedding_json column removed in ChromaDB migration.
+# Delete backend/data/dodoclens.db before first run to apply schema change.
 class Chunk(Base):
     __tablename__ = "chunks"
 
@@ -38,7 +40,5 @@ class Chunk(Base):
     )
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     text: Mapped[str] = mapped_column(Text, nullable=False)
-    # JSON array of floats (sentence-transformers all-MiniLM-L6-v2 → 384 dims)
-    embedding_json: Mapped[str] = mapped_column(Text, nullable=False)
 
     document: Mapped["Document"] = relationship("Document", back_populates="chunks")
