@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { api } from "../api/client";
+import { api, deleteDocument } from "../api/client";
+import { ConfirmDeleteModal } from "../components/ConfirmDeleteModal";
 import { EmptyState } from "../components/EmptyState";
 import { Spinner } from "../components/Spinner";
 import { useToast } from "../context/ToastContext";
@@ -27,6 +28,9 @@ export function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [selected, setSelected] = useState<DocumentDetail | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
   const prevStatusRef = useRef<Map<number, string>>(new Map());
   const initializedRef = useRef(false);
 
@@ -102,6 +106,29 @@ export function DocumentsPage() {
         variant: "error",
         message: "Não foi possível carregar os detalhes do documento.",
       });
+    }
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteTargetId == null) return;
+    setIsDeleting(true);
+    try {
+      await deleteDocument(deleteTargetId);
+      showToast({
+        variant: "success",
+        message: "Documento excluído com sucesso.",
+      });
+      setList((prev) => prev.filter((d) => d.id !== deleteTargetId));
+      if (selected?.id === deleteTargetId) setSelected(null);
+    } catch {
+      showToast({
+        variant: "error",
+        message: "Erro ao excluir documento. Tente novamente.",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteTargetId(null);
+      setDeleteTargetName("");
     }
   };
 
@@ -185,11 +212,11 @@ export function DocumentsPage() {
       {list.length > 0 && (
         <ul className="card-elevated divide-y divide-dl-border overflow-hidden rounded-xl border border-dl-border">
           {list.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} className="flex items-stretch">
               <button
                 type="button"
                 onClick={() => void openDetail(d.id)}
-                className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition-colors duration-theme hover:bg-white/[0.04]"
+                className="flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-4 text-left transition-colors duration-theme hover:bg-white/[0.04]"
               >
                 <div className="min-w-0">
                   <div className="truncate font-medium text-white">
@@ -213,6 +240,38 @@ export function DocumentsPage() {
                           : d.status}
                 </span>
               </button>
+              {d.status !== "processing" && (
+                <div className="flex shrink-0 items-center border-l border-dl-border pr-2 pl-1">
+                  <button
+                    type="button"
+                    title="Excluir documento"
+                    aria-label="Excluir documento"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTargetId(d.id);
+                      setDeleteTargetName(d.filename);
+                    }}
+                    className="rounded-md p-2 text-gray-400 transition-colors hover:text-red-500"
+                  >
+                    <svg
+                      className="h-4 w-4"
+                      width={16}
+                      height={16}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      aria-hidden
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </li>
           ))}
         </ul>
@@ -285,6 +344,18 @@ export function DocumentsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        isOpen={deleteTargetId !== null}
+        documentName={deleteTargetName}
+        onConfirm={() => void handleDeleteConfirm()}
+        onCancel={() => {
+          if (isDeleting) return;
+          setDeleteTargetId(null);
+          setDeleteTargetName("");
+        }}
+        isDeleting={isDeleting}
+      />
     </div>
   );
 }
