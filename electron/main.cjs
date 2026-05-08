@@ -17,48 +17,20 @@ function projectRoot() {
   return path.join(__dirname, "..");
 }
 
+const MAIN_PY = path.join(projectRoot(), "backend", "main.py");
 const IMPORTABLE_EXTENSIONS = new Set([".pdf", ".txt", ".png", ".jpg", ".jpeg"]);
 
-function getBackendPath() {
-  if (app.isPackaged) {
-    // extraResources lands in process.resourcesPath/backend
-    const resourcesBackend = path.join(process.resourcesPath, "backend");
-    if (fs.existsSync(resourcesBackend)) return resourcesBackend;
-  }
-  return path.join(__dirname, "..", "backend");
-}
-
-function getPythonPath() {
+function pythonExecutable() {
   if (process.env.DODOC_PYTHON) return process.env.DODOC_PYTHON;
-
-  const isWin = process.platform === "win32";
-  const binDir = isWin ? "Scripts" : "bin";
-  const pyBin = isWin ? "python.exe" : "python3";
-
-  if (app.isPackaged) {
-    // In packaged app, .venv was renamed to venv during build
-    const base = process.resourcesPath;
-    for (const venvName of ["venv", ".venv"]) {
-      const candidate = path.join(base, "backend", venvName, binDir, pyBin);
-      if (fs.existsSync(candidate)) {
-        console.log(`[electron] Using Python: ${candidate}`);
-        return candidate;
-      }
-    }
-    console.error("[electron] No .venv found in resources. Backend will fail.");
+  const root = projectRoot();
+  if (process.platform === "win32") {
+    const winVenv = path.join(root, "backend", ".venv", "Scripts", "python.exe");
+    if (fs.existsSync(winVenv)) return winVenv;
+    return "python";
   }
-
-  // Development mode
-  for (const venvName of [".venv", "venv"]) {
-    const candidate = path.join(__dirname, "..", "backend", venvName, binDir, pyBin);
-    if (fs.existsSync(candidate)) {
-      console.log(`[electron] Dev Python: ${candidate}`);
-      return candidate;
-    }
-  }
-
-  console.warn("[electron] Falling back to system Python.");
-  return isWin ? "python" : "python3";
+  const unixVenv = path.join(root, "backend", ".venv", "bin", "python3");
+  if (fs.existsSync(unixVenv)) return unixVenv;
+  return "python3";
 }
 
 function waitForBackend(host, port, pathname, timeoutMs) {
@@ -92,17 +64,8 @@ function waitForBackend(host, port, pathname, timeoutMs) {
 }
 
 function startBackend() {
-  const backendRoot = getBackendPath();
-  const mainPy = path.join(backendRoot, "main.py");
-  const py = getPythonPath();
-
-  console.log("[electron] Backend root:", backendRoot);
-  console.log("[electron] main.py path:", mainPy);
-  console.log("[electron] Python path:", py);
-  console.log("[electron] main.py exists:", fs.existsSync(mainPy));
-  console.log("[electron] Python exists:", fs.existsSync(py));
-
-  backendProcess = spawn(py, [mainPy], {
+  const py = pythonExecutable();
+  backendProcess = spawn(py, [MAIN_PY], {
     cwd: projectRoot(),
     env: { ...process.env, PYTHONUNBUFFERED: "1" },
     stdio: ["ignore", "pipe", "pipe"],
