@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 
 from database.connection import SessionLocal
 from models.orm import Chunk, Document
-from services.chunking import chunk_by_words
 from services.chroma_client import get_chroma_collection
+from services.chunking import chunk_by_words
 from services.embeddings import embed_texts
 from services.text_extraction import extract_text
 from utils.text import normalize_text
@@ -43,8 +43,7 @@ def process_document(document_id: int) -> None:
         doc.extracted_text_preview = normalized[:4000] if normalized else None
 
         old_ids = [
-            str(c.id)
-            for c in db.query(Chunk).filter(Chunk.document_id == doc.id).all()
+            str(c.id) for c in db.query(Chunk).filter(Chunk.document_id == doc.id).all()
         ]
         db.query(Chunk).filter(Chunk.document_id == doc.id).delete()
         db.flush()
@@ -90,9 +89,7 @@ def process_document(document_id: int) -> None:
             doc = db.get(Document, document_id)
             if doc:
                 doc.status = "error"
-                doc.error_message = _translate_processing_error(str(chroma_err))[
-                    :2000
-                ]
+                doc.error_message = _translate_processing_error(str(chroma_err))[:2000]
                 db.commit()
             return
 

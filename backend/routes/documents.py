@@ -20,11 +20,7 @@ router = APIRouter()
 
 @router.get("/documents", response_model=list[DocumentSummary])
 def list_documents(db: Session = Depends(get_db)):
-    rows = (
-        db.query(Document)
-        .order_by(Document.created_at.desc())
-        .all()
-    )
+    rows = db.query(Document).order_by(Document.created_at.desc()).all()
     return rows
 
 

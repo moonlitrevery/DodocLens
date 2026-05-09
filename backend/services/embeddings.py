@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 import threading
-from typing import Any
 
 import numpy as np
 
@@ -29,7 +28,9 @@ def get_model():
 
 def embed_texts(texts: list[str]) -> np.ndarray:
     model = get_model()
-    return np.asarray(model.encode(texts, show_progress_bar=False, convert_to_numpy=True))
+    return np.asarray(
+        model.encode(texts, show_progress_bar=False, convert_to_numpy=True)
+    )
 
 
 def embed_query(query: str) -> np.ndarray:
