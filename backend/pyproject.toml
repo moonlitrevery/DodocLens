@@ -32,3 +32,13 @@ dev = [
 [tool.uv]
 package = false
  
+
+[tool.ruff.lint]
+select = [
+'E',
+'F',
+'UP',
+'B',
+'SIM',
+'I',
+]
