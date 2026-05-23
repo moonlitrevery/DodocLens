@@ -47,9 +47,9 @@ O público-alvo inclui **advogados e equipes jurídicas**, **médicos e clínico
 | Shell desktop | Electron | Hospeda a interface, pode iniciar o backend, acesso ao sistema de arquivos (ex.: seletor de pasta). |
 | Interface | React + Vite + TypeScript + Tailwind | SPA: envio de arquivos, biblioteca de documentos, busca semântica; cliente HTTP para a API local. |
 | API | FastAPI + Uvicorn | Endpoints REST, tarefas em segundo plano, CORS para desenvolvimento local. |
-| Persistência | SQLite + SQLAlchemy | Armazena documentos, texto dos trechos e vetores de embedding serializados. |
+| Persistência | SQLite + SQLAlchemy | Armazena documentos e texto dos trechos (metadados). |
 | Embeddings | sentence-transformers + PyTorch | Carrega o MiniLM multilíngue; codifica trechos e consultas. |
-| Recuperação | scikit-learn (`cosine_similarity`) + NumPy | Compara o vetor da consulta aos vetores dos trechos para obter os melhores resultados. |
+| Índice vetorial | ChromaDB (HNSW) | Armazena os vetores de embedding e realiza busca por similaridade de cosseno de forma eficiente. |
 | PDF / imagens | PyMuPDF, pytesseract + Pillow | Texto nativo em PDF versus OCR em páginas rasterizadas; OCR em imagens. |
 
 ```mermaid
@@ -58,7 +58,7 @@ flowchart LR
   E --> N[Normalização]
   N --> C[Fragmentação]
   C --> M[Embedding]
-  M --> DB[(SQLite)]
+  M --> DB[(ChromaDB)]
   Q[Consulta] --> MQ[Embedding]
   DB --> CS[Similaridade de cosseno]
   MQ --> CS
@@ -73,9 +73,19 @@ Instale estes componentes **antes** de executar o app. O **Python** em si deve s
 
 ### Python 3.10–3.13 (via uv)
 
-**Não instale o CPython manualmente** pelo gerenciador de pacotes do sistema para este fluxo. Depois que o **uv** estiver instalado (próxima subseção), **`uv sync`** e **`uv python pin 3.13`** (veja a seção **Instalação** abaixo neste documento) baixam e fixam um interpretador suportado (**3.10–3.13**) alinhado ao `backend/pyproject.toml` e ao **`uv.lock`**.
+**Não instale o CPython manualmente** pelo gerenciador de pacotes do sistema para este fluxo. Depois que o **uv** estiver instalado (próxima subseção), **`uv sync`** e **`uv python pin 3.13`** (veja a seção **Instalação** abaixo) baixam e fixam um interpretador suportado (**3.10–3.13**) alinhado ao `backend/pyproject.toml` e ao **`uv.lock`**.
 
-### Node.js 18+
+### Node.js 22 LTS
+
+> [!WARNING]
+> Instale especificamente o **Node 22 LTS**. O Node 24+ tem um bug conhecido com o Vite no Windows que causa o erro `ENOENT: no such file or directory, realpath '...main.tsx'`. Veja [Problemas conhecidos](#problemas-conhecidos-e-limitações) para mais detalhes.
+
+- **Linux (Ubuntu / Debian)**
+
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  ```
 
 - **Linux (Arch / CachyOS)**
 
@@ -83,15 +93,16 @@ Instale estes componentes **antes** de executar o app. O **Python** em si deve s
   sudo pacman -S nodejs npm
   ```
 
+- **Windows 11**
+
+  Baixe e instale o `.msi` do **Node 22 LTS** em [nodejs.org/dist/v22.16.0](https://nodejs.org/dist/v22.16.0/node-v22.16.0-x64.msi). Após a instalação, abra um novo terminal e verifique com `node --version`.
+
 - **macOS**
 
   ```bash
-  brew install node
+  brew install node@22
+  brew link node@22
   ```
-
-- **Windows**
-
-  Instale a versão LTS em [nodejs.org](https://nodejs.org/).
 
 ### uv (gerenciador de pacotes Python)
 
@@ -111,6 +122,12 @@ Instale estes componentes **antes** de executar o app. O **Python** em si deve s
 
 Necessário para OCR em imagens e em PDFs que precisam de OCR rasterizado. Instale os pacotes de idioma **inglês** e **português** quando disponíveis.
 
+- **Linux (Ubuntu / Debian)**
+
+  ```bash
+  sudo apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-por
+  ```
+
 - **Linux (Arch / CachyOS)**
 
   ```bash
@@ -123,9 +140,9 @@ Necessário para OCR em imagens e em PDFs que precisam de OCR rasterizado. Insta
   brew install tesseract tesseract-lang
   ```
 
-- **Windows**
+- **Windows 11**
 
-  Instale a partir dos [builds UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) e coloque o `tesseract.exe` no **PATH** (veja também comentários em `backend/services/text_extraction.py`).
+  Instale a partir dos [builds UB Mannheim](https://github.com/UB-Mannheim/tesseract/wiki) e adicione o `tesseract.exe` ao **PATH**.
 
 > [!NOTE]
 > Depois de `uv sync`, execute **`uv python pin 3.13`** (ou outra versão entre 3.10 e 3.13) dentro de `backend/` para fixar o interpretador do projeto.
@@ -183,6 +200,17 @@ Necessário para OCR em imagens e em PDFs que precisam de OCR rasterizado. Insta
 <hr>
 
 ## 🚀 Executando o aplicativo
+
+### Com Docker (backend + frontend juntos)
+
+```bash
+docker-compose up --build
+```
+
+O backend ficará disponível em **http://127.0.0.1:8000** e o frontend em **http://localhost:80**.
+
+> [!NOTE]
+> O volume `dodoclens_data` persiste o banco de dados e os uploads entre reinicializações do container.
 
 ### Só o backend
 
@@ -333,6 +361,7 @@ print(text[:500])
 ```text
 DodocLens/
 ├── LICENSE                         # Texto da licença GPL-3.0
+├── docker-compose.yml              # Orquestra backend + frontend em containers
 ├── README.md                       # README em inglês
 ├── README.pt-BR.md                 # Este arquivo (português do Brasil)
 ├── package.json                    # Scripts na raiz: Electron, dev, produção
@@ -340,6 +369,7 @@ DodocLens/
 │   ├── main.cjs                    # Processo principal: janela, backend, IPC
 │   └── preload.cjs                 # contextBridge: plataforma, API de pasta
 ├── backend/
+│   ├── Dockerfile                  # Imagem Docker do backend (python:3.11-slim + Tesseract)
 │   ├── pyproject.toml              # Dependências Python (uv)
 │   ├── uv.lock                     # Versões fixadas das dependências
 │   ├── main.py                     # Entrada FastAPI + lifespan / CORS
@@ -360,10 +390,11 @@ DodocLens/
 │   │   ├── __init__.py
 │   │   ├── text_extraction.py      # PyMuPDF + OCR Tesseract
 │   │   ├── file_storage.py         # Salva uploads em backend/data/uploads
-│   │   ├── processing.py           # Pipeline em segundo plano: extrair → embed → SQLite
+│   │   ├── processing.py           # Pipeline em segundo plano: extrair → embed → ChromaDB
 │   │   ├── chunking.py             # Chunking em janelas de palavras
 │   │   ├── embeddings.py           # Singleton sentence-transformers
-│   │   └── search_service.py       # Busca semântica sobre vetores armazenados
+│   │   ├── chroma_client.py        # Singleton ChromaDB — índice vetorial persistente
+│   │   └── search_service.py       # Busca semântica via ChromaDB
 │   └── utils/
 │       ├── __init__.py
 │       └── text.py                 # Normalização de texto
@@ -398,12 +429,16 @@ Diretórios em tempo de execução, como **`backend/data/`** (banco SQLite, uplo
 ## ⚠️ Problemas conhecidos e limitações
 
 > [!WARNING]
+> **Windows — erro ENOENT do Vite:** Se `npm run dev` mostrar `ENOENT: no such file or directory, realpath '...\src\main.tsx'`, esse é um bug conhecido do Vite ao rodar com **Node 24+** no Windows. Solução:
+> 1. Instale o **Node 22 LTS** em [nodejs.org/dist/v22.16.0](https://nodejs.org/dist/v22.16.0/node-v22.16.0-x64.msi)
+> 2. Dentro de `frontend/`, execute: `npm install vite@latest @vitejs/plugin-react@latest`
+> 3. Reinicie o `npm run dev`
+
+> [!WARNING]
 > **Python 3.14+** pode quebrar wheels nativos (ex.: **pydantic-core** / PyO3). Use **Python 3.10–3.13**, com `uv python pin`.
 
 > [!TIP]
 > **Primeira execução** baixa o modelo de embedding (~**120 MB**); internet é necessária **uma vez**, salvo cache pré-preenchido.
-
-- **MVP de busca:** todos os embeddings dos trechos são carregados do SQLite na RAM a cada consulta — ok para bibliotecas pequenas, não para corpora enormes.
 
 > [!WARNING]
 > O **Tesseract** é um binário de sistema separado; precisa estar instalado e no `PATH` (ou configurado para o pytesseract no Windows).

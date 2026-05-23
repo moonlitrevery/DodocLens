@@ -47,9 +47,9 @@ The stack targets **legal professionals**, **clinicians**, and **researchers** w
 | Desktop shell | Electron | Hosts the UI, optional backend spawn, file-system access (e.g. folder picker). |
 | UI | React + Vite + TypeScript + Tailwind | SPA: upload, document library, semantic search; HTTP client to the local API. |
 | API | FastAPI + Uvicorn | REST endpoints, background processing hooks, CORS for local dev. |
-| Persistence | SQLite + SQLAlchemy | Stores documents, chunk text, and serialized embedding vectors. |
+| Persistence | SQLite + SQLAlchemy | Stores documents and chunk text (metadata only). |
 | Embeddings | sentence-transformers + PyTorch | Loads the multilingual MiniLM model; encodes chunks and queries. |
-| Retrieval | scikit-learn (`cosine_similarity`) + NumPy | Compares query vector to stored chunk vectors for top results. |
+| Vector index | ChromaDB (HNSW) | Stores embedding vectors and performs fast cosine similarity search. |
 | PDF / images | PyMuPDF, pytesseract + Pillow | PDF text layer vs. rasterized OCR paths; image OCR. |
 
 ```mermaid
@@ -58,7 +58,7 @@ flowchart LR
   E --> N[Normalization]
   N --> C[Chunking]
   C --> M[Embedding]
-  M --> DB[(SQLite)]
+  M --> DB[(ChromaDB)]
   Q[Search Query] --> MQ[Embedding]
   DB --> CS[Cosine Similarity]
   MQ --> CS
@@ -75,7 +75,17 @@ Install these **before** running the app. **Python itself** should be managed wi
 
 **Do not install CPython manually** from your OS package manager for this workflow. After **uv** is installed (next subsection), **`uv sync`** and **`uv python pin 3.13`** (see [Installation](#installation)) download and pin a supported **3.10–3.13** interpreter that matches `backend/pyproject.toml` and **`uv.lock`**.
 
-### Node.js 18+
+### Node.js 22 LTS
+
+> [!WARNING]
+> Install **Node 22 LTS** specifically. Node 24+ has a known bug with Vite on Windows that causes an `ENOENT: no such file or directory, realpath '...main.tsx'` error. See [Known Issues](#known-issues--limitations) for details.
+
+- **Linux (Ubuntu / Debian)**
+
+  ```bash
+  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+  sudo apt-get install -y nodejs
+  ```
 
 - **Linux (Arch / CachyOS)**
 
@@ -83,15 +93,16 @@ Install these **before** running the app. **Python itself** should be managed wi
   sudo pacman -S nodejs npm
   ```
 
+- **Windows 11**
+
+  Download and install the **Node 22 LTS** `.msi` from [nodejs.org/dist/v22.16.0](https://nodejs.org/dist/v22.16.0/node-v22.16.0-x64.msi). After installation, open a new terminal and verify with `node --version`.
+
 - **macOS**
 
   ```bash
-  brew install node
+  brew install node@22
+  brew link node@22
   ```
-
-- **Windows**
-
-  Install the LTS build from [nodejs.org](https://nodejs.org/).
 
 ### uv (Python package manager)
 
@@ -111,6 +122,12 @@ Install these **before** running the app. **Python itself** should be managed wi
 
 Required for image OCR and for PDFs that need raster OCR. Install **English** and **Portuguese** language packs where available.
 
+- **Linux (Ubuntu / Debian)**
+
+  ```bash
+  sudo apt install tesseract-ocr tesseract-ocr-eng tesseract-ocr-por
+  ```
+
 - **Linux (Arch / CachyOS)**
 
   ```bash
@@ -123,9 +140,9 @@ Required for image OCR and for PDFs that need raster OCR. Install **English** an
   brew install tesseract tesseract-lang
   ```
 
-- **Windows**
+- **Windows 11**
 
-  Install from [UB Mannheim builds](https://github.com/UB-Mannheim/tesseract/wiki) and add `tesseract.exe` to **PATH** (see also comments in `backend/services/text_extraction.py`).
+  Install from [UB Mannheim builds](https://github.com/UB-Mannheim/tesseract/wiki) and add `tesseract.exe` to **PATH**.
 
 > [!NOTE]
 > After `uv sync`, run **`uv python pin 3.13`** (or another supported 3.10–3.13 version) inside `backend/` so the project uses a consistent interpreter.
@@ -183,6 +200,17 @@ Required for image OCR and for PDFs that need raster OCR. Install **English** an
 <hr>
 
 ## 🚀 Running the Application
+
+### With Docker (backend + frontend together)
+
+```bash
+docker-compose up --build
+```
+
+The backend will be available at **http://127.0.0.1:8000** and the frontend at **http://localhost:80**.
+
+> [!NOTE]
+> The `dodoclens_data` volume persists the database and uploads between container restarts.
 
 ### Backend only
 
@@ -333,6 +361,7 @@ print(text[:500])
 ```text
 DodocLens/
 ├── LICENSE                         # GPL-3.0 license text
+├── docker-compose.yml              # Orchestrates backend + frontend containers
 ├── README.md                       # This file (English)
 ├── README.pt-BR.md                 # Brazilian Portuguese README
 ├── package.json                    # Root scripts: Electron, dev, production
@@ -340,6 +369,7 @@ DodocLens/
 │   ├── main.cjs                    # Electron main: window, backend spawn, IPC
 │   └── preload.cjs                 # contextBridge: platform, folder picker API
 ├── backend/
+│   ├── Dockerfile                  # Docker image (python:3.11-slim + Tesseract)
 │   ├── pyproject.toml              # Python dependencies (uv)
 │   ├── uv.lock                     # Locked dependency versions
 │   ├── main.py                     # FastAPI app entry + lifespan / CORS
@@ -360,10 +390,11 @@ DodocLens/
 │   │   ├── __init__.py
 │   │   ├── text_extraction.py      # PyMuPDF + Tesseract OCR paths
 │   │   ├── file_storage.py         # Saves uploads under backend/data/uploads
-│   │   ├── processing.py           # Background pipeline: extract → embed → SQLite
+│   │   ├── processing.py           # Background pipeline: extract → embed → ChromaDB
 │   │   ├── chunking.py             # Word-window chunking
 │   │   ├── embeddings.py           # sentence-transformers singleton
-│   │   └── search_service.py       # Semantic search over stored vectors
+│   │   ├── chroma_client.py        # ChromaDB singleton — persistent vector index
+│   │   └── search_service.py       # Semantic search via ChromaDB
 │   └── utils/
 │       ├── __init__.py
 │       └── text.py                 # Text normalization helpers
@@ -398,12 +429,16 @@ Runtime directories such as **`backend/data/`** (SQLite DB, uploads) are created
 ## ⚠️ Known Issues & Limitations
 
 > [!WARNING]
+> **Windows — Vite ENOENT error:** If `npm run dev` shows `ENOENT: no such file or directory, realpath '...\src\main.tsx'`, this is a known Vite bug when running on **Node 24+** on Windows. Fix:
+> 1. Install **Node 22 LTS** from [nodejs.org/dist/v22.16.0](https://nodejs.org/dist/v22.16.0/node-v22.16.0-x64.msi)
+> 2. Inside `frontend/`, run: `npm install vite@latest @vitejs/plugin-react@latest`
+> 3. Restart `npm run dev`
+
+> [!WARNING]
 > **Python 3.14+** may break native wheels (e.g. **pydantic-core** / PyO3). Use **Python 3.10–3.13** as pinned with `uv python pin`.
 
 > [!TIP]
 > **First run** downloads the **~120 MB** embedding model; internet is required **once** unless the cache is pre-populated.
-
-- **Search MVP:** all chunk embeddings are loaded from SQLite into RAM for each query — acceptable for small libraries, not for huge corpora.
 
 > [!WARNING]
 > **Tesseract** is a separate system binary; it must be installed and on `PATH` (or configured for pytesseract on Windows).
